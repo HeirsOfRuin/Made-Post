@@ -1,0 +1,24 @@
+# The invariant suite and the inert check on every push and pull request.
+# The batch runner and duel harness measure; they do not pass or fail, so they
+# are not run here.
+name: Test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Invariants, content, saves, success tests
+        run: node --test "test/*.test.js"
+      - name: Nothing declared is decoration
+        run: node sim/inert.js

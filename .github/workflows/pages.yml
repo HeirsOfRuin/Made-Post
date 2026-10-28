@@ -1,0 +1,54 @@
+# The installable web build on GitHub Pages. Deploys only from the default
+# branch (the github-pages environment refuses others). Pages must be switched
+# on once by hand: Settings > Pages > Source: GitHub Actions.
+name: Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Invariants
+        run: node --test "test/*.test.js"
+      - name: Assemble the site
+        run: |
+          set -e
+          mkdir -p _site
+          cp -r index.html manifest.webmanifest sw.js icons src _site/
+          touch _site/.nojekyll
+          for f in index.html manifest.webmanifest sw.js icons/icon-192.png icons/icon-512.png; do
+            test -s "_site/$f" || { echo "missing or empty: _site/$f"; exit 1; }
+          done
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

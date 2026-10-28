@@ -1,0 +1,15 @@
+{
+  "name": "Made Post",
+  "short_name": "Made Post",
+  "description": "Command a Royal Navy warship, 1793 to 1815. The real game is your crew.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3ecdc",
+  "theme_color": "#0f1a2a",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
