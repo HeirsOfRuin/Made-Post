@@ -24,9 +24,11 @@ export function score(s) {
   const p = s.player;
   const parts = {
     rank: p.rank !== 'captain' ? 10 : p.postList === 0 ? 70 : 30 + Math.round((520 - Math.min(520, p.postList)) / 10),
-    wealth: Math.round(Math.max(-20, Math.min(40, s.money / 250))),
+    // £1,000 a point up to £50,000: almost every career passed the old £10,000 cap.
+    wealth: Math.round(Math.max(-20, Math.min(50, s.money / 1000))),
     reputation: Math.round((p.rep.service + p.rep.public) / 4),
-    record: r.won * 4 + r.prizes * 2 - r.shipsLost * 10 - r.fled * 2,
+    // Prizes count through wealth; here only fights, so cheap coasters do not outscore a frigate action.
+    record: r.won * 5 - r.shipsLost * 10 - r.fled * 2,
     people: s.followers.length * 5 - Math.round((r.killed + r.died) / 20),
     conduct: (lashRate(s) < 40 ? 10 : lashRate(s) < 120 ? 5 : lashRate(s) < 260 ? 0 : -10) - 10 * r.mutinies,
   };

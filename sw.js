@@ -19,7 +19,7 @@
 // BUMP CACHE ON EVERY RELEASE (or stamp it with the build hash, as Farmyard's
 // bundler does) so returning players get the new build.
 
-const CACHE = 'made-post-v4'; // bump on every release (or stamp with a build hash)
+const CACHE = 'made-post-v5'; // bump on every release (or stamp with a build hash)
 const SHELL = ['./', './index.html', './manifest.webmanifest', './src/ui/styles.css', './src/ui/app.js', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {

@@ -87,6 +87,8 @@ export const CONFIG = {
 
   // ---- career -------------------------------------------------------------
   madePostThreshold: 55,        // performance score at the end of Act 1
+  madePostEase: 14,             // the bar drops this much at each later return
+  dispatchBonus: 15,            // named in the admiral's dispatch after the Act 1 battle
   postListStart: 520,           // place on the post list when made post (VERIFY: ~600 post captains in 1795)
   postListAdvancePerYear: 28,
   // Posting score below which no ship is offered for a commission.
@@ -115,5 +117,5 @@ export const CONFIG = {
 
 
   // ---- events ---------------------------------------------------------------
-  eventChance: 0.55,            // chance a quiet week brings a system event
+  eventChance: 0.35,            // chance a week with no sighting brings a ship's event (was 0.55: a card nearly every week)
 };

@@ -13,7 +13,7 @@
 
 import { CONFIG } from '../data/config.data.js';
 import { ACTS, SUPERIORS } from '../data/acts.data.js';
-import { ORDER_TYPES, STATIONS } from '../data/orders.data.js';
+import { ORDER_TYPES, STATIONS, COURSES, COURSE_ORDERS } from '../data/orders.data.js';
 import { SHIP_CLASSES, SHIP_TRAITS } from '../data/ships.data.js';
 import { GROUPS, FAULTS } from '../data/cast.data.js';
 import { EVENTS } from '../content/events.js';
@@ -93,8 +93,24 @@ export function choose(prev, input) {
       portChoose(s, input.id);
       return s;
     }
+    case 'course': {
+      if (s.phase !== 'sea') throw new Error(`course in phase ${s.phase}`);
+      if (!courseChoices(s)) throw new Error('these orders follow a fixed route');
+      if (!COURSES[input.id]) throw new Error(`no course ${input.id}`);
+      s.commission.course = input.id;
+      return s;
+    }
+    case 'plan': {
+      if (s.phase !== 'sea') throw new Error(`plan in phase ${s.phase}`);
+      const a = seaActions(s).find((x) => x.id === input.id);
+      if (!a) throw new Error(`no action ${input.id}`);
+      if (a.locked) return s;
+      s.commission.plan = s.commission.plan === input.id ? null : input.id;
+      return s;
+    }
     case 'advance': {
       if (s.phase !== 'sea') throw new Error(`advance in phase ${s.phase}`);
+      if (s.commission.plan === 'home') s.commission.weeks = s.commission.week + 1;
       seaWeek(s);
       if (s.wrecked) {
         s.wrecked = false;
@@ -269,7 +285,13 @@ export function view(s) {
   };
   if (s.phase === 'setup') v.setup = setupView(s);
   if (s.phase === 'port') v.port = { name: s.port.name, actions: portActions(s), next: nextCommissionNote(s) };
-  if (s.phase === 'sea') v.advance = { label: 'Next week', locked: null };
+  if (s.phase === 'sea') {
+    v.advance = { label: 'Next week', locked: null };
+    v.sea = {
+      courses: courseChoices(s), course: s.commission.course,
+      actions: seaActions(s), plan: s.commission.plan, week: s.weekReport || [],
+    };
+  }
   if (s.phase === 'decision' && s.pending) {
     const ev = EVENTS[s.pending.id];
     v.decision = {
@@ -335,6 +357,40 @@ function nextCommissionNote(s) {
   const def = ACTS[s.act]?.commissions[s.com];
   if (!def) return null;
   return { orders: ORDER_TYPES[def.orders].label, station: STATIONS[def.station], note: def.note, weeks: def.weeks, superior: SUPERIORS[def.superior].name };
+}
+
+/** Where you may sail this week, or null when the orders fix the route. */
+export function courseChoices(s) {
+  const c = s.commission;
+  if (!c || !COURSE_ORDERS.includes(c.orders)) return null;
+  return Object.entries(COURSES).map(([id, x]) => ({ id, label: x.label, hint: x.hint[c.orders] }));
+}
+
+/** The captain's optional actions this week, each with the reason it is locked. */
+export function seaActions(s) {
+  const c = s.commission;
+  if (!c) return [];
+  const half = Math.ceil(c.weeks / 2);
+  const out = [
+    {
+      id: 'raid', label: 'Boat raid',
+      hint: 'Send the boats into an enemy harbour at night to cut out a ship at anchor. A prize if it works; men lost if it does not.',
+      locked: !COURSE_ORDERS.includes(c.orders) ? 'Not while escorting or carrying dispatches.' : c.course !== 'inshore' ? 'Only when sailing inshore.' : c.raidCooldown ? `The boats' crews need ${c.raidCooldown} more week${c.raidCooldown === 1 ? '' : 's'}.` : D.manning(s) < 0.6 ? 'Too few men to spare for the boats.' : null,
+    },
+    {
+      id: 'rest', label: 'Rest day',
+      hint: 'A make-and-mend day: no training this week, and the men get some rest.',
+      locked: null,
+    },
+  ];
+  if (c.orders === 'cruise' && !c.tutorial) {
+    out.push({
+      id: 'home', label: 'Return home',
+      hint: 'End the cruise early and sail for port. Prize money is paid when you arrive.',
+      locked: c.week < half ? `Not before week ${half} of the cruise.` : null,
+    });
+  }
+  return out;
 }
 
 function currentNote(s) {

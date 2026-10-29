@@ -8,12 +8,14 @@ import { newGame, choose, view } from '../src/engine/game.js';
 
 export const POLICIES = {
   fair: {
+    sea: { course: 'patrol', plan: (v) => (v.crew.drivers.workload < 35 ? 'rest' : null) },
     setup: { officers: 'shipmates', men: 'mixed', command: 'firm' },
     orders: { drill: 'mixed', rations: 'full', work: 'normal', discipline: 'firm' },
     prefer: ['fair', 'care', 'obey', 'bold', 'drill', 'cautious', 'cheap'],
     port: { press: 0.8, volunteers: true, quota: true, powder: 1, liberty: true, recommend: true },
   },
   harsh: {
+    sea: { course: 'inshore', plan: () => 'raid' },
     setup: { officers: 'admiralty', men: 'press', command: 'taut' },
     orders: { drill: 'mixed', rations: 'full', work: 'hard', discipline: 'harsh' },
     prefer: ['harsh', 'obey', 'bold', 'drill', 'cheap', 'cautious'],
@@ -21,24 +23,28 @@ export const POLICIES = {
   },
   // Harsh standing orders, fair answers to every case: isolates the punishment order itself.
   strict: {
+    sea: { course: 'patrol', plan: () => null },
     setup: { officers: 'shipmates', men: 'mixed', command: 'taut' },
     orders: { drill: 'mixed', rations: 'full', work: 'normal', discipline: 'harsh' },
     prefer: ['fair', 'care', 'obey', 'bold', 'drill', 'cautious', 'cheap'],
     port: { press: 0.8, volunteers: true, quota: true, powder: 1, liberty: true, recommend: true },
   },
   lenient: {
+    sea: { course: 'patrol', plan: (v) => (v.crew.drivers.workload < 45 ? 'rest' : null) },
     setup: { officers: 'connected', men: 'seamen', command: 'easy' },
     orders: { drill: 'seamanship', rations: 'full', work: 'light', discipline: 'lenient' },
     prefer: ['lenient', 'care', 'fair', 'bold', 'obey', 'cheap', 'cautious'],
     port: { press: 0.6, volunteers: true, quota: true, powder: 0, liberty: true, recommend: true },
   },
   drilled: {
+    sea: { course: 'offshore', plan: () => null },
     setup: { officers: 'ranks', men: 'mixed', command: 'firm' },
     orders: { drill: 'gunnery', rations: 'full', work: 'normal', discipline: 'firm' },
     prefer: ['drill', 'fair', 'bold', 'care', 'obey', 'cautious', 'cheap'],
     port: { press: 0.8, volunteers: true, quota: true, powder: 3, liberty: true, recommend: true },
   },
   lazy: {
+    sea: { course: 'patrol', plan: () => null },
     setup: { officers: 'admiralty', men: 'mixed', command: 'easy' },
     orders: { drill: 'none', rations: 'full', work: 'light', discipline: 'firm' },
     prefer: ['cheap', 'fair', 'obey', 'bold', 'cautious'],
@@ -77,7 +83,17 @@ export function play(seed, opts = {}) {
     switch (s.phase) {
       case 'setup': input = { type: 'setup', id: (opts.setupChoices || pol.setup || {})[v.setup.id] || v.setup.options[0].id }; break;
       case 'port': input = { type: 'port', id: portMove(v, pol.port, s) }; break;
-      case 'sea': input = { type: 'advance' }; break;
+      case 'sea': {
+        // Where to sail, then at most one action, then the week.
+        const want = (opts.sea || pol.sea || {});
+        const course = opts.course || want.course;
+        if (v.sea.courses && course && v.sea.course !== course) { input = { type: 'course', id: course }; break; }
+        const plan = want.plan ? want.plan(v) : null;
+        const a = plan && v.sea.actions.find((x) => x.id === plan && !x.locked);
+        if (a && v.sea.plan !== a.id) { input = { type: 'plan', id: a.id }; break; }
+        input = { type: 'advance' };
+        break;
+      }
       case 'decision': input = { type: 'option', id: pick(v.decision.options, pol.prefer, fallbacks) }; break;
       case 'battle': input = { type: 'battle', id: v.battle.phase === 'done' ? 'continue' : pick(v.battle.options, pol.prefer, fallbacks) }; break;
       case 'report': input = { type: 'report' }; break;

@@ -159,11 +159,21 @@ function seaPanel(v) {
     </section>${ordersFold(v)}`;
   }
   const bad = v.crew.signs.filter((x) => !/happy ship/.test(x));
+  const sea = v.sea;
+  const course = sea.courses && sea.courses.find((x) => x.id === sea.course);
+  const planned = sea.actions.find((a) => a.id === sea.plan);
   return `<section class="panel"><p class="step">Week ${c.week} of ${c.weeks} · ${esc(c.label)}, ${esc(c.station)}</p>
     <p class="story">${esc(v.status)}</p>
     ${outcomeLine(v)}
+    ${sea.week.length ? `<ul class="week">${sea.week.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
     ${bad.length ? `<ul class="signs">${bad.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
-    <button class="primary big" data-act="end-turn">Next week</button>
+  </section>
+  <section class="panel plan"><h3>Next week</h3>
+    ${sea.courses ? `<div class="order"><span>Course</span><div class="seg">${sea.courses.map((x) => `<button data-act="course" data-id="${x.id}" class="${x.id === sea.course ? 'on' : ''}" aria-pressed="${x.id === sea.course}">${esc(x.label)}</button>`).join('')}</div><small>${esc(course.hint)}</small></div>`
+      : `<p class="hint">${c.label === 'Convoy escort' ? 'You must keep to the convoy\'s route.' : 'You must keep to the fastest route.'}</p>`}
+    <div class="order"><span>Action (optional)</span><div class="seg">${sea.actions.map((a) => `<button data-act="plan" data-id="${a.id}" class="${a.id === sea.plan ? 'on' : ''}" aria-pressed="${a.id === sea.plan}" ${a.locked ? 'disabled' : ''}>${esc(a.label)}</button>`).join('')}</div>
+      <small>${planned ? esc(planned.hint) : esc(sea.actions.map((a) => a.locked ? `${a.label}: ${a.locked}` : '').filter(Boolean).join(' ') || 'Tap one to plan it for next week.')}</small></div>
+    <button class="primary big" data-act="end-turn">${planned && planned.id === 'home' ? 'Sail for home' : 'Next week'}</button>
   </section>${ordersFold(v)}${conditionFold(v)}`;
 }
 
@@ -300,6 +310,8 @@ document.addEventListener('click', (ev) => {
       return;
     case 'setup': act({ type: 'setup', id: t.dataset.id }); window.scrollTo(0, 0); return;
     case 'order': act({ type: 'orders', key: t.dataset.key, value: t.dataset.value }); return;
+    case 'course': act({ type: 'course', id: t.dataset.id }); return;
+    case 'plan': act({ type: 'plan', id: t.dataset.id }); return;
     case 'port': act({ type: 'port', id: t.dataset.id }); return;
     case 'end-turn': act({ type: 'advance' }); window.scrollTo(0, 0); return;
     case 'option': act({ type: 'option', id: t.dataset.id }); window.scrollTo(0, 0); return;

@@ -20,8 +20,10 @@ export const ACTS = [
     ],
   },
   {
-    id: 2, title: 'Made Post', years: '1795-1801',
+    id: 2, title: 'The Restless Fleet', years: '1795-1801',
     intro: 'Captain of a frigate: a fast, well-armed ship that scouts for the fleet and hunts on her own. In 1797 the fleet\'s own sailors rise against the Admiralty, and every captain finds out what his crew really think of him.',
+    // Shown instead when the player has not yet been made post.
+    introCommander: 'You keep your sloop, and your chance. Every return to port is another look from the Admiralty, and the navy is growing fast: it needs new captains every year. Win fights, take prizes and keep your name clean. In 1797 the fleet\'s own sailors rise against the Admiralty, and every captain finds out what his crew really think of him.',
     commissions: [
       {
         id: 'a2c1', start: '1795-06-07', weeks: 10, orders: 'cruise', station: 'approaches',
@@ -44,6 +46,7 @@ export const ACTS = [
   {
     id: 3, title: 'The Long Blockade', years: '1803-1807',
     intro: 'The war is back, and it is a war of waiting: months on end off the French ports in all weathers, keeping the men healthy and sane until the enemy comes out.',
+    introCommander: 'The war is back, and you are still a commander. The navy is commissioning ships in a hurry and needs captains: this is your chance. It is a war of waiting: months on end off the French ports, keeping the men healthy and sane until the enemy comes out.',
     commissions: [
       {
         id: 'a3c1', start: '1803-06-12', weeks: 15, orders: 'blockade', station: 'brest',
@@ -67,6 +70,7 @@ export const ACTS = [
   {
     id: 4, title: 'The Last War', years: '1808-1815',
     intro: 'You are a senior captain now. Britain rules the sea and the army is fighting in Spain and Portugal. Then in 1812 the United States declares war, and its big new frigates start beating British ones.',
+    introCommander: 'Many good officers never were made post, and you are still a commander. There is honour in that, and work to do. Britain rules the sea and the army is fighting in Spain and Portugal. Then in 1812 the United States declares war, and its big new frigates start beating British ones.',
     commissions: [
       {
         id: 'a4c1', start: '1809-04-16', weeks: 10, orders: 'convoy', station: 'lisbon',

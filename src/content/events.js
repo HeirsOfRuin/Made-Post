@@ -7,7 +7,7 @@
 //          options(s, ctx) -> [{ id, label, tags, ops? , check? }] }
 // tags are read by the reference bot (sim/bot.js) to answer every decision.
 
-import { ORDER_TYPES, STATIONS } from '../data/orders.data.js';
+import { ORDER_TYPES, STATIONS, COURSES } from '../data/orders.data.js';
 import { ENEMIES, SHIP_CLASSES, SHIP_TRAITS } from '../data/ships.data.js';
 import { SUPERIORS } from '../data/acts.data.js';
 import { FAULTS } from '../data/cast.data.js';
@@ -89,21 +89,21 @@ export const EVENTS = {
     options: () => [
       {
         id: 'repeat', label: 'Hold your station and repeat every signal', tags: ['obey', 'cautious', 'fair'],
-        check: { skill: 'seamanship', vs: 45, label: 'Seamanship, in the smoke', pass: [['rep', 'service', 10], ['interest', 4]], fail: [['rep', 'service', 3]] },
+        check: { skill: 'seamanship', vs: 45, label: 'Seamanship, in the smoke', pass: [['rep', 'service', 10], ['interest', 4], ['flag', 'dispatch']], fail: [['rep', 'service', 3]] },
       },
       {
         id: 'rescue', label: 'Go in close to a wrecked French warship to rescue her drowning men', tags: ['care', 'bold', 'initiative'],
-        check: { skill: 'seamanship', vs: 55, label: 'Seamanship, under her guns', pass: [['rep', 'service', 8], ['rep', 'public', 10], ['driver', 'trust', 8]], fail: [['hull', -20], ['men', 'ordinary', -6, 'killed'], ['rep', 'service', 2]] },
+        check: { skill: 'seamanship', vs: 55, label: 'Seamanship, under her guns', pass: [['rep', 'service', 8], ['rep', 'public', 10], ['driver', 'trust', 8], ['flag', 'dispatch']], fail: [['hull', -20], ['men', 'ordinary', -6, 'killed'], ['rep', 'service', 2]] },
       },
       {
         id: 'tow', label: 'Tow a crippled British ship out of danger', tags: ['initiative', 'bold'],
-        check: { skill: 'seamanship', vs: 60, label: 'Seamanship, under fire', pass: [['rep', 'service', 14], ['interest', 6]], fail: [['rigging', -25], ['rep', 'service', -2]] },
+        check: { skill: 'seamanship', vs: 60, label: 'Seamanship, under fire', pass: [['rep', 'service', 14], ['interest', 6], ['flag', 'dispatch']], fail: [['rigging', -25], ['rep', 'service', -2]] },
       },
     ],
   },
   trafalgar: {
     kind: 'finale', title: 'Trafalgar',
-    text: () => '21 October 1805, off Cape Trafalgar. The French and Spanish fleets have come out of Cadiz, and Nelson is attacking in two columns. Frigates do not fight in the line of battle; yours repeats signals, tows damaged ships and rescues survivors.',
+    text: () => '21 October 1805, off Cape Trafalgar. The French and Spanish fleets have come out of Cadiz, and Nelson is attacking in two columns. Ships as small as yours do not fight in the line of battle: you repeat signals, tow damaged ships and rescue survivors.',
     options: () => [
       {
         id: 'signals', label: 'Repeat signals for Collingwood\'s column', tags: ['obey', 'cautious', 'fair'],
@@ -238,9 +238,9 @@ export const EVENTS = {
   gale: {
     kind: 'system', title: 'A gale',
     weight: (s) => (s.commission.orders === 'blockade' ? 3 : 2),
-    text: (s) => `A gale from the south-west, with the wind pushing you toward a rocky coast${s.ship.trait === 'crank' ? ', and your ship is crank: she leans over so far her lower guns go under' : ''}.`,
+    text: (s) => `A gale from the south-west${s.commission.course === 'offshore' ? ', with plenty of sea room around you' : ', with the wind pushing you toward a rocky coast'}${s.ship.trait === 'crank' ? ', and your ship is crank: she leans over so far her lower guns go under' : ''}.`,
     options: (s) => {
-      const crank = SHIP_TRAITS[s.ship.trait]?.gale || 0;
+      const crank = (SHIP_TRAITS[s.ship.trait]?.gale || 0) + (COURSES[s.commission.course]?.gale || 0);
       return [
         {
           id: 'shorten', label: 'Take in sail early and work away from the coast', tags: ['cautious', 'fair'],
@@ -353,7 +353,7 @@ export const EVENTS = {
   },
   'fresh-food': {
     kind: 'system', title: 'Fresh beef',
-    weight: (s) => (s.crew.weeksSinceFresh > 5 && s.commission.orders !== 'cruise' ? 3 : 0),
+    weight: (s) => (s.crew.weeksSinceFresh > 5 && (s.commission.orders === 'blockade' || s.commission.orders === 'convoy') ? 3 : 0),
     text: (s) => `A supply ship has come out to the ${s.commission.orders === 'blockade' ? 'squadron' : 'convoy'} with live cattle and onions. Every captain wants them.`,
     options: () => [
       { id: 'buy', label: 'Pay the supply ship\'s master to serve you first', tags: ['care'], ops: [['money', -30, 'Fresh provisions'], ['driver', 'provisions', 8], ['flag', 'freshFood'], ['health', 4]] },
@@ -395,7 +395,16 @@ export const EVENTS = {
 
 export const SYSTEM_EVENTS = Object.entries(EVENTS).filter(([, e]) => e.kind === 'system').map(([id]) => id);
 
-export const TUTORIAL_WEEKS = { 1: 'tut-watches', 2: 'tut-punish', 3: 'tut-powder', 5: 'tut-orders', 6: 'tut-action' };
+// The first lieutenant's lessons in Act 1. Each comes up when the situation
+// it teaches arises (ready), or by its last week at the latest, so they arrive
+// in a different order and at different times each game.
+export const TUTORIAL = [
+  { id: 'tut-watches', ready: (s) => s.commission.week === 1, by: 1 },
+  { id: 'tut-punish', ready: (s) => (s.weekOffences || 0) > 0, by: 4 },
+  { id: 'tut-powder', ready: (s) => s.orders.drill === 'gunnery' || s.orders.drill === 'mixed', by: 6 },
+  { id: 'tut-orders', ready: () => true, by: 6 },
+  { id: 'tut-action', ready: (s) => s.record.actions === 0, by: 7, skip: (s) => s.record.actions > 0 },
+];
 
 export const STATION_NAME = (s) => STATIONS[s.commission.station];
 export const SUPERIOR = (s) => SUPERIORS[s.commission.superior];

@@ -4,7 +4,7 @@
 
 import { CONFIG } from '../data/config.data.js';
 import { ENEMIES, SHIP_CLASSES } from '../data/ships.data.js';
-import { ORDER_TYPES } from '../data/orders.data.js';
+import { ORDER_TYPES, COURSES } from '../data/orders.data.js';
 import { clamp, effective, morale, checkChance, band, crewTotal, shipSpeed, captainShare } from './derive.js';
 import { log, officer } from './state.js';
 
@@ -35,7 +35,9 @@ export function startBattle(s, kind, rng) {
     result: e.fights ? null : 'won',
     struck: e.fights ? null : 'foe',
   };
-  s.battle.foe.value = rng.range(e.prize[0], e.prize[1]);
+  // Where you were sailing decides what a merchant is worth: coasters inshore,
+  // rich ocean traders offshore.
+  s.battle.foe.value = Math.round(rng.range(e.prize[0], e.prize[1]) * (kind === 'merchant' ? (COURSES[s.commission?.course]?.prizeValue ?? 1) : 1));
   // The day's fortune: a lucky shot, a sprung spar, the wind backing. Drawn once per fight.
   s.battle.own.fortune = rng.float(1 - B().fortune, 1 + B().fortune);
   s.battle.foe.fortune = rng.float(1 - B().fortune, 1 + B().fortune);

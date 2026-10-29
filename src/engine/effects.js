@@ -182,6 +182,7 @@ export function describe(s, ops) {
         break;
       }
       case 'depart': parts.push('Breaks your orders'); break;
+      case 'flag': if (a === 'dispatch') parts.push('Named in the admiral\'s dispatch'); break;
       case 'battle': parts.push('A fight'); break;
       case 'chase': parts.push('Chase'); break;
       case 'mutiny': parts.push('Mutiny'); break;

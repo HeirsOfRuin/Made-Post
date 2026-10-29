@@ -33,6 +33,7 @@ export function startCommission(s) {
     id: def.id, orders: def.orders, station: def.station, superior: def.superior,
     weeks: def.weeks, week: 0, enemies: { ...def.enemies }, finale: def.finale || null,
     tutorial: !!def.tutorial, departed: false, departurePaid: false, convoyLost: 0,
+    course: 'patrol', plan: null, raidCooldown: 0,
     startRecord: { ...s.record }, startDay: s.day,
   };
   s.phase = 'sea';
@@ -110,11 +111,17 @@ function makePost(s, lines) {
 /** Performance at the end of Act 1, or on a later return while still a commander. */
 export function promotionScore(s) {
   const r = s.record;
-  return round1(s.player.rep.service * 0.6 + s.player.interest * 0.5 + r.won * 6 + Math.min(10, r.prizes * 2) - r.mutinies * 10);
+  return round1(s.player.rep.service * 0.6 + s.player.interest * 0.5 + r.won * 6 + Math.min(10, r.prizes * 2) - r.mutinies * 10 + (s.flags.dispatch ? CONFIG.dispatchBonus : 0));
 }
 
+/** Each return lowers the bar: the navy grew fast and needed captains. */
 export function promotionThreshold(s) {
-  return CONFIG.madePostThreshold - 8 * (s.flags.postChecks || 0);
+  return CONFIG.madePostThreshold - CONFIG.madePostEase * (s.flags.postChecks || 0);
+}
+
+/** An act's opening words, as they apply to this player. */
+export function actIntro(s, act) {
+  return s.player.rank === 'commander' && act.introCommander ? act.introCommander : act.intro;
 }
 
 /**
@@ -180,7 +187,7 @@ export function endCommission(s, cause = 'complete') {
     const th = promotionThreshold(s);
     s.flags.postChecks = (s.flags.postChecks || 0) + 1;
     if (sc >= th) makePost(s, lines);
-    else lines.push(`Not promoted yet: the Admiralty wants a record of ${th} and yours is ${Math.round(sc)}. Fights won, your name in the navy and your influence all count.`);
+    else lines.push(`Not promoted this time: the Admiralty looked for a record of ${th}, and yours is ${Math.round(sc)}. Your next chance comes when you return from your next voyage, and the bar will be lower: the navy needs captains. Fights won, prizes, your name in the navy and your influence all count.`);
   }
 
   s.reports.push({ day: s.day, title: `End of commission: ${formatDay(s.day)}`, lines });
@@ -213,13 +220,18 @@ export function interludeOptions(s) {
 export function interludeText(s) {
   const il = s.interlude;
   const next = ACTS[il.nextAct];
-  return { head: interludeHead(s), act: next ? { id: next.id, title: next.title, years: next.years, intro: next.intro } : null };
+  return { head: interludeHead(s), act: next ? { id: next.id, title: next.title, years: next.years, intro: actIntro(s, next) } : null };
 }
 
 function interludeHead(s) {
   const il = s.interlude;
-  if (!il.ending) return 'The Glorious First of June is won, and the news is in London. At the Admiralty, they are deciding which young commanders deserve promotion.';
-  if (il.ending === 'amiens') return 'March 1802: the Peace of Amiens. Britain and France stop fighting. Most of the navy\'s ships are laid up and their captains sent home on half pay. You are one of them. The peace lasts fourteen months.';
+  if (!il.ending) {
+    const named = s.flags.dispatch ? 'Your sloop is named in Lord Howe\'s dispatch, ' : 'Lord Howe\'s dispatch does not mention you; it leaves out half the officers who fought, and there is an outcry, ';
+    return s.player.rank === 'captain'
+      ? `The Glorious First of June is won and the news is in London. ${named}and the Admiralty\'s list of promotions includes your name: you are made post. A frigate will follow.`
+      : `The Glorious First of June is won and the news is in London. ${named}but when the list of promotions comes out, your name is not on it. Many good commanders were passed over that summer. You keep your sloop, and your chance.`;
+  }
+  if (il.ending === 'amiens') return 'March 1802: the Peace of Amiens. Britain and France stop fighting. Most of the navy\'s ships are laid up and their officers sent home on half pay. You are one of them. The peace lasts fourteen months.';
   if (il.ending === 'continental') return 'By 1807 Napoleon rules most of Europe and has closed its ports to British trade. After Trafalgar there is no French fleet left that can face the British at sea. What remains is convoys, blockades and the coast of Spain.';
   if (il.ending === 'peace') return 'June 1815: Waterloo. Napoleon is sent into exile on St Helena and the long war is over. Within a year most of the fleet is laid up, and most captains go home on half pay for good.';
   return '';
@@ -241,7 +253,7 @@ export function interludeChoose(s, id) {
   s.act = il.nextAct;
   s.com = 0;
   s.interlude = null;
-  log(s, `Act ${ACTS[s.act].id}: ${ACTS[s.act].title}. ${ACTS[s.act].intro}`, 'act');
+  log(s, `Act ${ACTS[s.act].id}: ${ACTS[s.act].title}. ${actIntro(s, ACTS[s.act])}`, 'act');
   prepareCommission(s);
 }
 
