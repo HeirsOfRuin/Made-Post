@@ -1,12 +1,12 @@
-# The installable web build on GitHub Pages. Deploys only from the default
-# branch (the github-pages environment refuses others). Pages must be switched
-# on once by hand: Settings > Pages > Source: GitHub Actions.
+# The installable web build on GitHub Pages. Builds on every push; deploys
+# only from the repository's default branch, whatever it is named (the
+# github-pages environment refuses other branches; this repo has no 'main').
+# Pages is switched on by hand once: Settings > Pages > Source: GitHub Actions.
 name: Pages
 
 on:
   workflow_dispatch:
   push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -36,15 +36,18 @@ jobs:
           for f in index.html manifest.webmanifest sw.js icons/icon-192.png icons/icon-512.png; do
             test -s "_site/$f" || { echo "missing or empty: _site/$f"; exit 1; }
           done
-      - uses: actions/configure-pages@v5
+      - if: github.ref_name == github.event.repository.default_branch
+        uses: actions/configure-pages@v5
         with:
           enablement: true
-      - uses: actions/upload-pages-artifact@v3
+      - if: github.ref_name == github.event.repository.default_branch
+        uses: actions/upload-pages-artifact@v3
         with:
           path: _site
 
   deploy:
     needs: build
+    if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     environment:
       name: github-pages
