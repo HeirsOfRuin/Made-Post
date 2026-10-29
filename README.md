@@ -26,7 +26,9 @@ game to another device.
 
 ## How a career runs
 
-- **Port:** man the ship (volunteers, the press, quota men), buy practice powder
+- **Taking command:** four short screens: the Admiralty's letter, your officers,
+  your men, and what kind of captain you mean to be.
+- **Port** (between voyages): man the ship (volunteers, the press, quota men), buy practice powder
   from your own purse, give liberty, recommend a midshipman, put to sea.
 - **At sea, a week a turn:** standing orders for drill, rations, work and
   punishment run every week. Offences are punished under your standing order.

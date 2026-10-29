@@ -14,8 +14,8 @@ export const ENDINGS = {
 
 export function rankTitle(s) {
   if (s.player.rank !== 'captain') return 'Commander';
-  if (s.player.postList === 0) return 'Rear-Admiral (by seniority)';
-  return 'Post-captain';
+  if (s.player.postList === 0) return 'Rear-Admiral';
+  return 'Captain';
 }
 
 /** Six parts, each shown with its value, so the score explains itself. */

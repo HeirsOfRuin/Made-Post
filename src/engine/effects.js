@@ -7,7 +7,7 @@ import { CONFIG } from '../data/config.data.js';
 import { clamp, checkChance, band, effective, morale } from './derive.js';
 import { money, log, officer } from './state.js';
 
-export const SEVERITY = ['Admonished', 'Grog stopped', 'Extra duty and irons', 'Flogged, a dozen lashes', 'Flogged, three dozen lashes'];
+export const SEVERITY = ['A warning', 'Rum ration stopped', 'Extra work and a night in irons', 'Flogged: 12 lashes', 'Flogged: 36 lashes'];
 
 export const OFFENCES = [
   { id: 'drunk', label: 'drunk on watch', gravity: 1.5, weight: 5 },
@@ -129,8 +129,8 @@ export function optionChance(s, opt) {
 // ---- describing ops ---------------------------------------------------------
 
 const NAMES = {
-  fairness: 'Fairness', trust: 'Trust', provisions: 'Provisions', workload: 'Rest', prospects: 'Prospects',
-  service: 'Service reputation', public: 'Public name', men: 'Name among the men',
+  fairness: 'Fairness', trust: 'Trust', provisions: 'Food', workload: 'Rest', prospects: 'Hope',
+  service: 'Name in the navy', public: 'Name with the public', men: 'Name with sailors',
   gunnery: 'Gunnery', seamanship: 'Seamanship', food: 'Food', powder: 'Powder', water: 'Water',
 };
 
@@ -147,16 +147,16 @@ export function describe(s, ops) {
     switch (k) {
       case 'driver': parts.push(`${NAMES[a]} ${size(b)}`); break;
       case 'discipline': parts.push(`Discipline ${size(a)}`); break;
-      case 'grievance': parts.push(a > 0 ? 'Grievance grows' : 'Grievance eases'); break;
+      case 'grievance': parts.push(a > 0 ? 'Unrest grows' : 'Unrest eases'); break;
       case 'rep': parts.push(`${NAMES[a]} ${size(b)}`); break;
-      case 'interest': parts.push(`Interest ${size(a)}`); break;
+      case 'interest': parts.push(`Influence ${size(a)}`); break;
       case 'money': parts.push(`${a < 0 ? 'Costs' : 'Gains'} £${Math.abs(a)}`); break;
       case 'skill': parts.push(`${NAMES[a]} ${size(b)}`); break;
       case 'health': parts.push(`Health ${size(a)}`); break;
       case 'hull': parts.push(`Hull ${size(a, 10)}`); break;
       case 'rigging': parts.push(`Rigging ${size(a, 10)}`); break;
       case 'store': parts.push(`${NAMES[a]} ${b < 0 ? `-${-b}` : `+${b}`}`); break;
-      case 'men': parts.push(`${b > 0 ? '+' : ''}${b} ${a}`); break;
+      case 'men': parts.push(b > 0 ? `${b} more ${a === 'able' ? 'able seamen' : a}` : `${-b} ${a === 'pressed' ? 'pressed men' : a === 'able' ? 'able seamen' : 'men'} lost`); break;
       case 'stance': {
         const m = s.named.find((n) => n.id === a);
         if (m) parts.push(`${m.name.split(' ').slice(-1)[0]} ${b > 0 ? 'warmer' : 'colder'}`);
@@ -172,10 +172,17 @@ export function describe(s, ops) {
         if (o) parts.push(`${o.label} ${b > 0 ? 'more loyal' : 'less loyal'}`);
         break;
       }
-      case 'curb': parts.push('Officer curbed'); break;
-      case 'punish': parts.push(`${SEVERITY[Math.round(clamp(b, 0, 4))]}${b - a > 0.75 ? ' (harsher than the offence)' : a - b > 1 ? ' (lighter than the offence)' : ''}`); break;
-      case 'depart': parts.push('Departs from orders'); break;
-      case 'battle': parts.push('Action'); break;
+      case 'curb': parts.push('He mends his ways'); break;
+      case 'punish': {
+        const diff = Math.round(clamp(b, 0, 4)) - a;
+        parts.push(Math.abs(diff) <= 0.75 ? 'Fits the offence: the men think it fair'
+          : diff > 0.75 ? `Harsher than the offence: order improves, but the men think it unfair${b >= 4 ? '. Beyond the 12 lashes the regulations allow' : ''}`
+            : diff < -1 ? 'Much lighter than the offence: popular, but discipline slips'
+              : 'A little light: discipline slips slightly');
+        break;
+      }
+      case 'depart': parts.push('Breaks your orders'); break;
+      case 'battle': parts.push('A fight'); break;
       case 'chase': parts.push('Chase'); break;
       case 'mutiny': parts.push('Mutiny'); break;
       case 'stage': parts.push(a > 0 ? 'Unrest grows' : 'Unrest eases'); break;
@@ -184,7 +191,7 @@ export function describe(s, ops) {
       default: break;
     }
   }
-  return parts.join(' · ');
+  return [...new Set(parts)].join(' · ');
 }
 
 export function stakeLine(s, opt) {
@@ -192,7 +199,7 @@ export function stakeLine(s, opt) {
     const p = optionChance(s, opt);
     const pass = describe(s, opt.check.pass);
     const fail = describe(s, opt.check.fail);
-    return `${opt.check.label || opt.check.skill}: ${band(p)}. If it goes well: ${pass || 'no change'}. If not: ${fail || 'no change'}.`;
+    return `Chance: ${band(p).toLowerCase()} (${(opt.check.label || opt.check.skill).toLowerCase()}). If it works: ${pass || 'nothing changes'}. If not: ${fail || 'nothing changes'}.`;
   }
   const d = describe(s, opt.ops);
   return d || 'No change';

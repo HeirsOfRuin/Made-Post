@@ -10,7 +10,7 @@ import { clamp, baseSkill, crewTotal } from './derive.js';
 
 export const SAVE_VERSION = 1;
 
-export function newGame({ seed = 1, background = 'naval', name = 'Captain James Ashworth' } = {}) {
+export function newGame({ seed = 1, background = 'naval', name = 'James Ashworth' } = {}) {
   const bg = BACKGROUNDS[background] || BACKGROUNDS.naval;
   const rng = streamFor(seed, 0, 'new');
   const first = ACTS[0].commissions[0];
@@ -19,7 +19,8 @@ export function newGame({ seed = 1, background = 'naval', name = 'Captain James 
     seed: seed >>> 0,
     turn: 0,
     day: dayOf(first.start) - 21,
-    phase: 'port',
+    phase: 'setup',
+    setup: { step: 0, choices: {} },
     player: {
       name, background, rank: 'commander', postDay: null, postList: null, alive: true,
       skills: { seamanship: bg.seamanship, gunnery: bg.gunnery },
@@ -58,13 +59,13 @@ export function newGame({ seed = 1, background = 'naval', name = 'Captain James 
   };
   money(s, bg.money, 'Private means on taking command');
   assignShip(s, 'sloop', rng, { fresh: true });
-  // A half-manned sloop: the tutorial's first lesson is manning her.
+  // Warrant officers, a few seamen and the marines: the rest is found in the
+  // opening (setup.js), one choice at a time.
   const g = s.crew.groups;
-  g.able = 22; g.ordinary = 20; g.landsmen = 6; g.pressed = 4; g.marines = 14;
+  g.able = 14; g.ordinary = 10; g.landsmen = 0; g.pressed = 0; g.marines = 14;
   s.crew.skill = { ...baseSkill(s) };
   s.officers = makeOfficers(s, rng, true);
-  openPort(s, 'Portsmouth');
-  log(s, ACTS[0].intro, 'act');
+  log(s, `Appointed to command HMS ${s.ship.name}, sloop, at Portsmouth.`, 'career');
   return s;
 }
 

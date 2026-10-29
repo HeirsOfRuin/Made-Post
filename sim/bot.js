@@ -8,32 +8,38 @@ import { newGame, choose, view } from '../src/engine/game.js';
 
 export const POLICIES = {
   fair: {
+    setup: { officers: 'shipmates', men: 'mixed', command: 'firm' },
     orders: { drill: 'mixed', rations: 'full', work: 'normal', discipline: 'firm' },
     prefer: ['fair', 'care', 'obey', 'bold', 'drill', 'cautious', 'cheap'],
     port: { press: 0.8, volunteers: true, quota: true, powder: 1, liberty: true, recommend: true },
   },
   harsh: {
+    setup: { officers: 'admiralty', men: 'press', command: 'taut' },
     orders: { drill: 'mixed', rations: 'full', work: 'hard', discipline: 'harsh' },
     prefer: ['harsh', 'obey', 'bold', 'drill', 'cheap', 'cautious'],
     port: { press: 1, volunteers: true, quota: true, powder: 1, liberty: false, recommend: false },
   },
   // Harsh standing orders, fair answers to every case: isolates the punishment order itself.
   strict: {
+    setup: { officers: 'shipmates', men: 'mixed', command: 'taut' },
     orders: { drill: 'mixed', rations: 'full', work: 'normal', discipline: 'harsh' },
     prefer: ['fair', 'care', 'obey', 'bold', 'drill', 'cautious', 'cheap'],
     port: { press: 0.8, volunteers: true, quota: true, powder: 1, liberty: true, recommend: true },
   },
   lenient: {
+    setup: { officers: 'connected', men: 'seamen', command: 'easy' },
     orders: { drill: 'seamanship', rations: 'full', work: 'light', discipline: 'lenient' },
     prefer: ['lenient', 'care', 'fair', 'bold', 'obey', 'cheap', 'cautious'],
     port: { press: 0.6, volunteers: true, quota: true, powder: 0, liberty: true, recommend: true },
   },
   drilled: {
+    setup: { officers: 'ranks', men: 'mixed', command: 'firm' },
     orders: { drill: 'gunnery', rations: 'full', work: 'normal', discipline: 'firm' },
     prefer: ['drill', 'fair', 'bold', 'care', 'obey', 'cautious', 'cheap'],
     port: { press: 0.8, volunteers: true, quota: true, powder: 3, liberty: true, recommend: true },
   },
   lazy: {
+    setup: { officers: 'admiralty', men: 'mixed', command: 'easy' },
     orders: { drill: 'none', rations: 'full', work: 'light', discipline: 'firm' },
     prefer: ['cheap', 'fair', 'obey', 'bold', 'cautious'],
     port: { press: 0.8, volunteers: true, quota: true, powder: 0, liberty: true, recommend: false },
@@ -69,6 +75,7 @@ export function play(seed, opts = {}) {
     const v = view(s);
     let input;
     switch (s.phase) {
+      case 'setup': input = { type: 'setup', id: (opts.setupChoices || pol.setup || {})[v.setup.id] || v.setup.options[0].id }; break;
       case 'port': input = { type: 'port', id: portMove(v, pol.port, s) }; break;
       case 'sea': input = { type: 'advance' }; break;
       case 'decision': input = { type: 'option', id: pick(v.decision.options, pol.prefer, fallbacks) }; break;

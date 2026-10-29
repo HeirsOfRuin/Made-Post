@@ -25,6 +25,9 @@ const short = (m) => m.name.replace(/^Mr /, '').split(' ').slice(-1)[0];
 const officerWith = (s, fault) => s.officers.find((o) => o.status === 'aboard' && o.fault === fault && !o.curbed);
 const firstLt = (s) => s.officers.find((o) => o.post === 'first' && o.status === 'aboard');
 const lowestDriver = (s) => Object.entries(s.crew.drivers).sort((a, b) => a[1] - b[1])[0][0];
+// What the men would call each driver when they complain of it.
+const GRIEF = { fairness: 'unfair punishment', trust: 'the way the officers treat them', provisions: 'the food', workload: 'being worked too hard', prospects: 'no prizes and no hope of any' };
+const grief = (s) => GRIEF[lowestDriver(s)];
 
 /** The punishment ladder as options, for any case brought before the captain. */
 function punishOptions(gravity, who, extra = []) {
@@ -40,31 +43,31 @@ export const EVENTS = {
   // ---- Act 1 lessons (the teacher speaks) ------------------------------------
   'tut-watches': {
     kind: 'tutorial', title: 'Watches and divisions',
-    text: (s) => `${firstLt(s)?.name || 'Your first lieutenant'} brings you the watch bill. "Two watches, sir, watch and watch, and they'll learn the ship faster. Three, and they'll sleep, and like you better for it. Pressed men are slow to like anyone."`,
+    text: (s) => `${firstLt(s)?.name || 'Your first lieutenant'} brings you the watch bill: who works when. "Split them in two watches, sir, four hours on and four off, and they'll learn the ship faster. Split them in three and they'll get their sleep, and like you better for it."`,
     options: () => [
       { id: 'three', label: 'Three watches: let them sleep', tags: ['fair', 'care'], ops: [['driver', 'workload', 8], ['driver', 'trust', 2]] },
-      { id: 'two', label: 'Watch and watch: work them up', tags: ['drill', 'harsh'], ops: [['driver', 'workload', -6], ['skill', 'seamanship', 4]] },
+      { id: 'two', label: 'Two watches: work them up', tags: ['drill', 'harsh'], ops: [['driver', 'workload', -6], ['skill', 'seamanship', 4]] },
     ],
   },
   'tut-punish': {
     kind: 'tutorial', title: 'Your first punishment',
     text: (s) => {
       const m = man(s, 'ringleader');
-      return `${m ? m.name : 'A pressed man'} is brought aft: drunk at his station and insolent to the boatswain's mate. The whole ship is watching to see what kind of captain you are. "The Articles allow you a dozen without a court, sir," says ${firstLt(s)?.name || 'the first lieutenant'}. "Most give more. The men will remember which."`;
+      return `${m ? m.name : 'A pressed man'} is brought before you: drunk on duty and insolent to a petty officer. The whole crew is watching to see what kind of captain you are. "The regulations allow you twelve lashes without a court-martial, sir," says ${firstLt(s)?.name || 'the first lieutenant'}. "Most captains give more. The men will remember which you are."`;
     },
     options: () => punishOptions(2, 'ringleader'),
   },
   'tut-powder': {
     kind: 'tutorial', title: 'Powder and practice',
-    text: (s) => `${man(s, 'gunner')?.name || 'The gunner'} protests: the Admiralty allows powder for practice once a month, and you mean to fire the guns every week. "That's your own money after the allowance, sir." Captain Broke of the Shannon would later spend years of his own income doing exactly this.`,
+    text: (s) => `${man(s, 'gunner')?.name || 'The gunner'} objects. The Admiralty supplies only enough gunpowder to fire the guns in practice now and then. "Fire them every week, sir, and you buy the powder yourself." Gunnery won battles; few captains paid for it.`,
     options: () => [
       { id: 'live', label: 'Fire them with powder, at my expense', tags: ['drill'], ops: [['money', -40, 'Powder for gun practice'], ['skill', 'gunnery', 6], ['store', 'powder', -6]] },
-      { id: 'dumb', label: 'Run them in and out without firing', tags: ['cheap', 'cautious'], ops: [['skill', 'gunnery', 2]] },
+      { id: 'dumb', label: 'Practise loading without firing', tags: ['cheap', 'cautious'], ops: [['skill', 'gunnery', 2]] },
     ],
   },
   'tut-orders': {
     kind: 'tutorial', title: 'Orders or initiative',
-    text: (s) => `A signal from the flagship: all cruisers to rejoin by Sunday. At the same moment the masthead hails a sail to the south, a Frenchman by her cut. "You have discretion, sir," ${firstLt(s)?.name || 'the first lieutenant'} says, "until you don't. Lord Howe likes his signals obeyed."`,
+    text: (s) => `A signal from the flagship: all small ships are to rejoin the fleet. At the same moment the lookout spots a sail to the south, French by the look of her: a possible prize. "You can explain a chase afterwards, sir," ${firstLt(s)?.name || 'the first lieutenant'} says, "if it pays. Lord Howe likes his signals obeyed."`,
     options: () => [
       { id: 'obey', label: 'Obey the signal and rejoin', tags: ['obey', 'cautious'], ops: [['rep', 'service', 3], ['driver', 'prospects', -3]] },
       { id: 'chase', label: 'Chase, and explain afterwards', tags: ['initiative', 'bold'], ops: [['depart'], ['chase', 'merchant']] },
@@ -72,46 +75,46 @@ export const EVENTS = {
   },
   'tut-action': {
     kind: 'tutorial', title: 'A privateer',
-    text: () => 'A French privateer brig has taken a Guernsey coaster under your lee and is putting a prize crew into her. She has fourteen guns to your sixteen, and more men. Your first action.',
+    text: () => 'A French privateer (a privately owned warship licensed to raid British trade) has captured a small British trading ship just downwind of you and is putting men aboard to sail her to France. She has fourteen guns to your sixteen, and more men. Your first fight.',
     options: () => [
       { id: 'engage', label: 'Engage her', tags: ['bold', 'obey', 'fair'], ops: [['battle', 'privateer']] },
-      { id: 'shadow', label: 'Shadow her and wait for support', tags: ['cautious'], ops: [['rep', 'service', -4], ['driver', 'trust', -5], ['convoyLoss']] },
+      { id: 'shadow', label: 'Follow at a distance and wait for help', tags: ['cautious'], ops: [['rep', 'service', -4], ['driver', 'trust', -5], ['convoyLoss']] },
     ],
   },
 
   // ---- Act finales -------------------------------------------------------------
   'glorious-first': {
     kind: 'finale', title: 'The Glorious First of June',
-    text: () => 'Lord Howe has brought the French fleet to battle four hundred miles out in the Atlantic. Your sloop has no place in the line. You are ordered to repeat the admiral\'s signals down the fleet, through the smoke.',
+    text: () => '1 June 1794. Lord Howe has caught the French fleet far out in the Atlantic, and the great ships are fighting it out in two long lines. Your sloop is too small to fight in the line. Your job is to repeat the admiral\'s flag signals so every ship can see them through the smoke.',
     options: () => [
       {
         id: 'repeat', label: 'Hold your station and repeat every signal', tags: ['obey', 'cautious', 'fair'],
-        check: { skill: 'seamanship', vs: 45, label: 'Keeping station in the smoke', pass: [['rep', 'service', 10], ['interest', 4]], fail: [['rep', 'service', 3]] },
+        check: { skill: 'seamanship', vs: 45, label: 'Seamanship, in the smoke', pass: [['rep', 'service', 10], ['interest', 4]], fail: [['rep', 'service', 3]] },
       },
       {
-        id: 'rescue', label: 'Close a dismasted French seventy-four to take off the drowning', tags: ['care', 'bold', 'initiative'],
-        check: { skill: 'seamanship', vs: 55, label: 'Working in under her guns', pass: [['rep', 'service', 8], ['rep', 'public', 10], ['driver', 'trust', 8]], fail: [['hull', -20], ['men', 'ordinary', -6, 'killed'], ['rep', 'service', 2]] },
+        id: 'rescue', label: 'Go in close to a wrecked French warship to rescue her drowning men', tags: ['care', 'bold', 'initiative'],
+        check: { skill: 'seamanship', vs: 55, label: 'Seamanship, under her guns', pass: [['rep', 'service', 8], ['rep', 'public', 10], ['driver', 'trust', 8]], fail: [['hull', -20], ['men', 'ordinary', -6, 'killed'], ['rep', 'service', 2]] },
       },
       {
-        id: 'tow', label: 'Take a crippled British ship in tow', tags: ['initiative', 'bold'],
-        check: { skill: 'seamanship', vs: 60, label: 'Passing a tow in action', pass: [['rep', 'service', 14], ['interest', 6]], fail: [['rigging', -25], ['rep', 'service', -2]] },
+        id: 'tow', label: 'Tow a crippled British ship out of danger', tags: ['initiative', 'bold'],
+        check: { skill: 'seamanship', vs: 60, label: 'Seamanship, under fire', pass: [['rep', 'service', 14], ['interest', 6]], fail: [['rigging', -25], ['rep', 'service', -2]] },
       },
     ],
   },
   trafalgar: {
     kind: 'finale', title: 'Trafalgar',
-    text: () => '21 October 1805. The Combined Fleet is out of Cadiz and Nelson\'s two columns are bearing down on its centre. Frigates do not lie in the line; yours repeats signals, tows and picks up the survivors when it is done.',
+    text: () => '21 October 1805, off Cape Trafalgar. The French and Spanish fleets have come out of Cadiz, and Nelson is attacking in two columns. Frigates do not fight in the line of battle; yours repeats signals, tows damaged ships and rescues survivors.',
     options: () => [
       {
         id: 'signals', label: 'Repeat signals for Collingwood\'s column', tags: ['obey', 'cautious', 'fair'],
-        check: { skill: 'seamanship', vs: 50, label: 'Station-keeping', pass: [['rep', 'service', 8], ['interest', 4]], fail: [['rep', 'service', 2]] },
+        check: { skill: 'seamanship', vs: 50, label: 'Seamanship', pass: [['rep', 'service', 8], ['interest', 4]], fail: [['rep', 'service', 2]] },
       },
       {
         id: 'tow', label: 'Tow a dismasted prize clear before the gale', tags: ['initiative', 'bold'],
-        check: { skill: 'seamanship', vs: 62, label: 'Towing in a rising gale', pass: [['rep', 'service', 12], ['rep', 'public', 6], ['interest', 5]], fail: [['rigging', -30], ['hull', -10], ['rep', 'service', -2]] },
+        check: { skill: 'seamanship', vs: 62, label: 'Seamanship, in a rising gale', pass: [['rep', 'service', 12], ['rep', 'public', 6], ['interest', 5]], fail: [['rigging', -30], ['hull', -10], ['rep', 'service', -2]] },
       },
       {
-        id: 'survivors', label: 'Pick up survivors from the burning Achille', tags: ['care'],
+        id: 'survivors', label: 'Rescue survivors from the burning French Achille', tags: ['care'],
         ops: [['rep', 'public', 8], ['driver', 'trust', 6], ['rep', 'service', 4]],
       },
     ],
@@ -120,20 +123,20 @@ export const EVENTS = {
   // ---- History as a test -------------------------------------------------------
   'hist-spithead': {
     kind: 'history', title: 'Spithead',
-    text: (s) => `Word has come out from Spithead: the Channel Fleet will not weigh until the men's pay, unchanged since 1653, is raised and their food made honest. A boat from a ship of the line comes alongside asking your people to send delegates. Your crew's mood: ${morale(s) >= 55 ? 'loyal, but they want the pay' : 'sullen, and listening'}.`,
+    text: (s) => `News from Spithead, the fleet anchorage at Portsmouth: the sailors of the Channel Fleet have refused to sail until their pay is raised (it has not changed since 1653) and their food is fairly measured. A boat comes alongside asking your crew to send men to speak for them. Your crew are ${morale(s) >= 55 ? 'loyal to you, but they want the pay rise too' : 'sullen, and listening'}.`,
     options: () => [
-      { id: 'allow', label: 'Let them send delegates; forward their petition yourself', tags: ['fair', 'care'], ops: [['grievance', -15], ['driver', 'trust', 6], ['driver', 'fairness', 4], ['rep', 'service', -2]] },
+      { id: 'allow', label: 'Let them send men, and pass on their complaints yourself', tags: ['fair', 'care'], ops: [['grievance', -15], ['driver', 'trust', 6], ['driver', 'fairness', 4], ['rep', 'service', -2]] },
       {
         id: 'forbid', label: 'Forbid it and keep the men at work', tags: ['harsh', 'obey'],
-        check: { skill: 'morale', vs: 52, label: 'Whether they stay with you', pass: [['discipline', 6], ['rep', 'service', 4]], fail: [['stage', 1], ['driver', 'trust', -8]] },
+        check: { skill: 'morale', vs: 52, label: 'Their loyalty', pass: [['discipline', 6], ['rep', 'service', 4]], fail: [['stage', 1], ['driver', 'trust', -8]] },
       },
     ],
   },
   'hist-nore': {
     kind: 'history', title: 'The Nore',
-    text: () => 'The mutiny at the Nore has gone further than Spithead: ships blockading the Thames, a delegate called President Parker, officers sent ashore. It will end with Parker hanged. Your men have heard all of it.',
+    text: () => 'A second mutiny, at the Nore in the Thames estuary, has gone much further than Spithead: the mutineers have blockaded London and sent their officers ashore. It will fail, and its leader, Richard Parker, will be hanged. Your men have heard all of it.',
     options: () => [
-      { id: 'articles', label: 'Read the Articles of War to the ship\'s company', tags: ['harsh', 'obey'], ops: [['discipline', 5], ['driver', 'trust', -2]] },
+      { id: 'articles', label: 'Read the Articles of War (the navy\'s laws) to the crew', tags: ['harsh', 'obey'], ops: [['discipline', 5], ['driver', 'trust', -2]] },
       { id: 'talk', label: 'Speak plainly to them about pay and what you can do', tags: ['fair', 'care'], ops: [['driver', 'trust', 4], ['grievance', -8]] },
     ],
   },
@@ -141,17 +144,17 @@ export const EVENTS = {
   // ---- Mutiny ladder: each warning sign is a decision --------------------------
   'mut-1': {
     kind: 'mutiny', title: 'Muttering',
-    text: (s) => `The men go quiet when officers pass, and a hammock was cut down in the night. "There's talk on the lower deck, sir," says ${firstLt(s)?.name || 'the first lieutenant'}. "${{ fairness: 'They think punishment here is a lottery', trust: 'They don\'t trust the quarterdeck', provisions: 'It\'s the food', workload: 'They\'re worked to death', prospects: 'They say she\'s a dead ship' }[lowestDriver(s)]}."`,
+    text: (s) => `The men go quiet when officers pass, and someone cut down a petty officer's hammock in the night. "There's talk below decks, sir," says ${firstLt(s)?.name || 'the first lieutenant'}. "It's ${grief(s)}."`,
     options: (s) => [
-      { id: 'address', label: `Deal with the cause (${lowestDriver(s)})`, tags: ['fair', 'care'], ops: [['driver', lowestDriver(s), 10], ['grievance', -10], ['discipline', -2]] },
-      { id: 'grog', label: 'Splice the main brace', tags: ['lenient'], ops: [['driver', 'provisions', 5], ['grievance', -5], ['discipline', -3], ['store', 'food', -1]] },
+      { id: 'address', label: `Put right the cause: ${grief(s)}`, tags: ['fair', 'care'], ops: [['driver', lowestDriver(s), 10], ['grievance', -10], ['discipline', -2]] },
+      { id: 'grog', label: 'Give everyone an extra tot of rum', tags: ['lenient'], ops: [['driver', 'provisions', 5], ['grievance', -5], ['discipline', -3], ['store', 'food', -1]] },
       { id: 'example', label: 'Flog the loudest as an example', tags: ['harsh'], ops: [['punish', 1, 3, 'ringleader'], ['grievance', 4]] },
       { id: 'ignore', label: 'Ignore it', tags: ['cheap'], ops: [['grievance', 5]] },
     ],
   },
   'mut-2': {
     kind: 'mutiny', title: 'A round robin',
-    text: (s) => `A petition is found on the capstan, the names signed in a circle so that no man signed first. ${man(s, 'lawyer') ? `It reads like ${man(s, 'lawyer').name}'s work.` : ''} It complains of ${lowestDriver(s)}, and it is respectful, so far.`,
+    text: (s) => `A petition is left where you will find it, the names signed in a circle (a "round robin") so that no one man can be called its leader. ${man(s, 'lawyer') ? `It reads like ${man(s, 'lawyer').name}'s work.` : ''} It complains of ${grief(s)}. It is respectful, so far.`,
     options: (s) => [
       { id: 'answer', label: 'Read it to the ship and answer it', tags: ['fair', 'care'], ops: [['driver', lowestDriver(s), 14], ['grievance', -18], ['discipline', -3], ['driver', 'trust', 4]] },
       { id: 'forward', label: 'Forward it to the admiral', tags: ['obey', 'cautious'], ops: [['grievance', -10], ['rep', 'service', -2]] },
@@ -161,30 +164,30 @@ export const EVENTS = {
   },
   'mut-3': {
     kind: 'mutiny', title: 'Refusing duty',
-    text: (s) => `The hands will not turn out. They are not violent; they stand on the forecastle and say they will work when ${lowestDriver(s) === 'provisions' ? 'the food is fit to eat' : lowestDriver(s) === 'fairness' ? 'the punishments stop' : lowestDriver(s) === 'workload' ? 'they have had rest' : 'they are treated fairly'}. The marines are under arms.`,
+    text: (s) => `The crew refuse to work. They are not violent; they stand together at the bow and say they will work again when ${lowestDriver(s) === 'provisions' ? 'the food is fit to eat' : lowestDriver(s) === 'fairness' ? 'the unfair punishments stop' : lowestDriver(s) === 'workload' ? 'they have had some rest' : 'they are treated fairly'}. The marines have their muskets ready.`,
     options: () => [
       {
-        id: 'speak', label: 'Go forward alone and speak to them', tags: ['fair', 'bold'],
-        check: { skill: 'trust', vs: 48, label: 'Whether they trust you', pass: [['grievance', -25], ['driver', 'trust', 6]], fail: [['grievance', 10], ['driver', 'trust', -4]] },
+        id: 'speak', label: 'Walk forward alone and talk to them', tags: ['fair', 'bold'],
+        check: { skill: 'trust', vs: 48, label: 'Their trust in you', pass: [['grievance', -25], ['driver', 'trust', 6]], fail: [['grievance', 10], ['driver', 'trust', -4]] },
       },
-      { id: 'concede', label: 'Concede their demand', tags: ['lenient', 'care'], ops: [['driver', 'fairness', 8], ['driver', 'provisions', 8], ['driver', 'workload', 8], ['grievance', -30], ['discipline', -10], ['rep', 'service', -4]] },
+      { id: 'concede', label: 'Give them what they ask', tags: ['lenient', 'care'], ops: [['driver', 'fairness', 8], ['driver', 'provisions', 8], ['driver', 'workload', 8], ['grievance', -30], ['discipline', -10], ['rep', 'service', -4]] },
       {
         id: 'arrest', label: 'Send in the marines and arrest the leaders', tags: ['harsh'],
-        check: { skill: 'discipline', vs: 45, label: 'Whether the marines hold', pass: [['discipline', 10], ['driver', 'fairness', -8], ['grievance', -12], ['named', 'ringleader', 'ashore']], fail: [['mutiny', 'outbreak']] },
+        check: { skill: 'discipline', vs: 45, label: 'Your marines\' discipline', pass: [['discipline', 10], ['driver', 'fairness', -8], ['grievance', -12], ['named', 'ringleader', 'ashore']], fail: [['mutiny', 'outbreak']] },
       },
     ],
   },
   'mut-4': {
     kind: 'mutiny', title: 'Mutiny',
-    text: (s) => `At two bells in the middle watch the hands rise. The officers are held in the gunroom. ${man(s, 'ringleader') ? `${man(s, 'ringleader').name} speaks for them.` : ''} What happens now depends on what they think of you.`,
+    text: (s) => `In the middle of the night the crew rise and seize the ship. The officers are locked below. ${man(s, 'ringleader') ? `${man(s, 'ringleader').name} speaks for them.` : ''} What happens next depends on what they think of you.`,
     options: () => [
       {
-        id: 'parley', label: 'Parley: hear their terms', tags: ['fair', 'care'],
-        check: { skill: 'fairness', vs: 40, label: 'Whether they think you just', pass: [['mutiny', 'strike']], fail: [['mutiny', 'violent']] },
+        id: 'parley', label: 'Talk: hear their terms', tags: ['fair', 'care'],
+        check: { skill: 'fairness', vs: 40, label: 'How fair they think you', pass: [['mutiny', 'strike']], fail: [['mutiny', 'violent']] },
       },
       {
         id: 'fight', label: 'Rally the officers and marines', tags: ['harsh', 'bold'],
-        check: { skill: 'discipline', vs: 55, label: 'Whether the marines stand', pass: [['mutiny', 'suppressed']], fail: [['mutiny', 'violent']] },
+        check: { skill: 'discipline', vs: 55, label: 'Your marines\' discipline', pass: [['mutiny', 'suppressed']], fail: [['mutiny', 'violent']] },
       },
     ],
   },
@@ -194,11 +197,11 @@ export const EVENTS = {
     kind: 'sighting', title: 'Sail ho',
     text: (s, ctx) => {
       const e = ENEMIES[ctx.enemy];
-      if (!e.fights) return `A ${e.flag} ${e.name}, deep-laden, to leeward. A prize, if you can catch her.`;
-      if (ctx.enemy === 'privateer' && s.commission.orders === 'convoy') return `A ${e.flag} privateer is hanging on the convoy's rear, waiting for a straggler.`;
-      if (ctx.enemy === 'privateer') return `A ${e.flag} privateer brig, fast and well manned. Worth taking, if you can catch her.`;
+      if (!e.fights) return `A ${e.flag} ${e.name}, heavily loaded, downwind of you. Unarmed and worth money, if you can catch her.`;
+      if (ctx.enemy === 'privateer' && s.commission.orders === 'convoy') return `A ${e.flag} privateer is following the convoy, waiting to snap up any ship that falls behind.`;
+      if (ctx.enemy === 'privateer') return `A ${e.flag} privateer (a privately owned raider), fast and full of men. Worth taking, if you can catch her.`;
       const r = sizeAgainst(s, ctx.enemy);
-      return `A ${e.flag} ${e.name}, standing toward you under easy sail. She has seen you. ${ctx.enemy === 'american' ? 'She is bigger than any British frigate, and her guns are 24-pounders. ' : ''}${r < 0.75 ? 'She is the heavier ship by a distance.' : r > 1.3 ? 'You are the heavier ship.' : 'You are fairly matched in size.'} (Her broadside ${e.broadside} lb and ${e.crew} men; yours ${SHIP_CLASSES[s.ship.cls].broadside} lb and ${crewTotal(s)}.)`;
+      return `A ${e.flag} ${e.name} is coming toward you. She has seen you. ${ctx.enemy === 'american' ? 'She is bigger than any British frigate, with heavier guns. ' : ''}${r < 0.75 ? 'She is much stronger than you.' : r > 1.3 ? 'You are the stronger ship.' : 'You are fairly evenly matched.'} (She has ${e.crew} men and fires ${e.broadside} lb of shot at a time; you have ${crewTotal(s)} men and fire ${SHIP_CLASSES[s.ship.cls].broadside} lb.)`;
     },
     options: (s, ctx) => {
       const o = ORDER_TYPES[s.commission.orders];
@@ -211,17 +214,17 @@ export const EVENTS = {
         // American 44s alone), so the tags say so.
         const heavier = sizeAgainst(s, ctx.enemy) < 0.75;
         return [
-          { id: 'engage', label: 'Clear for action', tags: heavier ? ['bold'] : ['bold', 'obey'], ops: [['battle', ctx.enemy]] },
+          { id: 'engage', label: 'Prepare to fight', tags: heavier ? ['bold'] : ['bold', 'obey'], ops: [['battle', ctx.enemy]] },
           {
             id: 'avoid', label: 'Avoid action', tags: heavier ? ['cautious', 'obey', 'fair'] : ['cautious'],
-            check: { skill: 'seamanship', vs: e.seamanship - 5, label: 'Getting clear', pass: [['rep', 'service', -2]], fail: [['battle', ctx.enemy]] },
+            check: { skill: 'seamanship', vs: e.seamanship - 5, label: 'Seamanship', pass: [['rep', 'service', -2]], fail: [['battle', ctx.enemy]] },
           },
         ];
       }
       if (defend) {
         return [
           { id: 'drive', label: 'Drive her off the convoy', tags: ['obey', 'bold'], ops: [['battle', ctx.enemy]] },
-          { id: 'close', label: 'Close up the convoy and keep station', tags: ['cautious'], ops: [['convoyLoss']] },
+          { id: 'close', label: 'Keep the convoy together and stay with it', tags: ['cautious'], ops: [['convoyLoss']] },
         ];
       }
       return [
@@ -235,16 +238,16 @@ export const EVENTS = {
   gale: {
     kind: 'system', title: 'A gale',
     weight: (s) => (s.commission.orders === 'blockade' ? 3 : 2),
-    text: (s) => `It comes on to blow from the south-west, hard, with a lee shore under you${s.ship.trait === 'crank' ? ', and she is crank: she lies over until the lee guns are in the water' : ''}.`,
+    text: (s) => `A gale from the south-west, with the wind pushing you toward a rocky coast${s.ship.trait === 'crank' ? ', and your ship is crank: she leans over so far her lower guns go under' : ''}.`,
     options: (s) => {
       const crank = SHIP_TRAITS[s.ship.trait]?.gale || 0;
       return [
         {
-          id: 'shorten', label: 'Shorten sail early and claw off', tags: ['cautious', 'fair'],
+          id: 'shorten', label: 'Take in sail early and work away from the coast', tags: ['cautious', 'fair'],
           check: { skill: 'seamanship', vs: 38 + crank, label: 'Seamanship', pass: [['rigging', -3]], fail: [['rigging', -12], ['hull', -5]] },
         },
         {
-          id: 'carry', label: 'Carry sail and hold the station', tags: ['bold', 'obey'],
+          id: 'carry', label: 'Keep sail on and hold your position', tags: ['bold', 'obey'],
           check: { skill: 'seamanship', vs: 58 + crank, label: 'Seamanship', pass: [['rep', 'service', 2], ['driver', 'trust', 3]], fail: [['rigging', -22], ['hull', -10], ['men', 'ordinary', -3, 'died']] },
         },
       ];
@@ -260,7 +263,7 @@ export const EVENTS = {
     },
     options: () => [
       { id: 'buy', label: 'Buy fresh food from a passing vessel, at my expense', tags: ['care', 'fair'], ops: [['money', -45, 'Fresh food for the sick'], ['health', 10], ['driver', 'trust', 3], ['driver', 'provisions', 4]] },
-      { id: 'rest', label: 'Ease the work and air the ship', tags: ['care', 'cheap'], ops: [['health', 5], ['driver', 'workload', 4], ['skill', 'seamanship', -2]] },
+      { id: 'rest', label: 'Ease the work and air out the ship', tags: ['care', 'cheap'], ops: [['health', 5], ['driver', 'workload', 4], ['skill', 'seamanship', -2]] },
       { id: 'carry', label: 'Carry on', tags: ['harsh', 'cheap'], ops: [['health', -4], ['driver', 'trust', -3]] },
     ],
   },
@@ -270,7 +273,7 @@ export const EVENTS = {
     prepare: (s) => ({ post: officerWith(s, 'cruel').post }),
     text: (s, ctx) => {
       const o = s.officers.find((x) => x.post === ctx.post);
-      return `${o.name}, your ${o.label.toLowerCase()}, has the boatswain's mates starting the men with rope's ends for being slow, on his own authority. ${FAULTS.cruel.note}`;
+      return `${o.name}, your ${o.label.toLowerCase()}, has been having men beaten with rope's ends for being slow, on his own authority ("starting", the navy called it). ${FAULTS.cruel.note}`;
     },
     options: (s, ctx) => [
       { id: 'curb', label: 'Order him to stop: no man struck without your word', tags: ['fair'], ops: [['curb', ctx.post], ['loyalty', ctx.post, -12], ['driver', 'fairness', 5]] },
@@ -287,7 +290,7 @@ export const EVENTS = {
     },
     options: (s, ctx) => [
       { id: 'warn', label: 'Warn him privately; stop his wine', tags: ['fair', 'care'], ops: [['curb', ctx.post], ['loyalty', ctx.post, -5]] },
-      { id: 'public', label: 'Reprimand him on the quarterdeck', tags: ['harsh'], ops: [['curb', ctx.post], ['loyalty', ctx.post, -15], ['driver', 'fairness', 4], ['discipline', 2]] },
+      { id: 'public', label: 'Reprimand him in front of the crew', tags: ['harsh'], ops: [['curb', ctx.post], ['loyalty', ctx.post, -15], ['driver', 'fairness', 4], ['discipline', 2]] },
       { id: 'ignore', label: 'Let it pass', tags: ['lenient', 'cheap'], ops: [['driver', 'fairness', -4], ['discipline', -2]] },
     ],
   },
@@ -315,66 +318,66 @@ export const EVENTS = {
     text: (s, ctx) => {
       const m = man(s, ctx.who);
       const o = OFFENCES.find((x) => x.id === ctx.offence);
-      return `${m.name}, ${m.role}, is brought aft for ${o.label}. The ship knows him, and knows how you dealt with the last man.`;
+      return `${m.name}, ${m.role}, is brought before you for ${o.label}. The crew know him, and they remember how you dealt with the last man.`;
     },
     options: (s, ctx) => punishOptions(OFFENCES.find((x) => x.id === ctx.offence).gravity, ctx.who),
   },
   'purser-weights': {
     kind: 'system', title: 'Short weight',
     weight: (s) => (man(s, 'lawyer') && s.crew.drivers.provisions < 60 ? 3 : 0),
-    text: (s) => `${man(s, 'lawyer').name} has weighed the beef. The purser's pound is fourteen ounces, as it always is in the service, and he says so loudly, citing the regulations.`,
+    text: (s) => `${man(s, 'lawyer').name} has weighed the beef. The purser (the officer in charge of food) issues a "pound" of fourteen ounces, as pursers always did, and Hartley says so loudly, quoting the regulations.`,
     options: () => [
-      { id: 'inquire', label: 'Inquire into the purser\'s weights', tags: ['fair', 'care'], ops: [['driver', 'provisions', 6], ['driver', 'fairness', 4], ['stance', 'lawyer', 10]] },
-      { id: 'dismiss', label: 'Tell him it is the custom of the service', tags: ['cautious', 'cheap'], ops: [['driver', 'fairness', -4], ['stance', 'lawyer', -8]] },
+      { id: 'inquire', label: 'Look into the purser\'s weights', tags: ['fair', 'care'], ops: [['driver', 'provisions', 6], ['driver', 'fairness', 4], ['stance', 'lawyer', 10]] },
+      { id: 'dismiss', label: 'Tell him that is how it is done', tags: ['cautious', 'cheap'], ops: [['driver', 'fairness', -4], ['stance', 'lawyer', -8]] },
       { id: 'flog', label: 'Flog him for insolence', tags: ['harsh'], ops: [['punish', 0.5, 3, 'lawyer'], ['grievance', 5]] },
     ],
   },
   'landsman-rated': {
     kind: 'system', title: 'A promising landsman',
     weight: (s) => (man(s, 'landsman') && s.crew.skill.seamanship > 45 ? 2 : 0),
-    text: (s) => `${man(s, 'landsman').name} went aloft to clear a fouled sheet in a squall when two able seamen hung back. The captain of the foretop wants him in his top.`,
+    text: (s) => `${man(s, 'landsman').name} climbed the rigging in a squall to free a jammed rope when two experienced men hung back. The leader of the foremast crew wants him.`,
     options: () => [
-      { id: 'rate', label: 'Rate him able and put him in the foretop', tags: ['fair', 'care'], ops: [['named', 'landsman', 'rated'], ['men', 'landsmen', -1], ['men', 'able', 1], ['driver', 'fairness', 3], ['driver', 'trust', 2]] },
+      { id: 'rate', label: 'Promote him to able seaman', tags: ['fair', 'care'], ops: [['named', 'landsman', 'rated'], ['men', 'landsmen', -1], ['men', 'able', 1], ['driver', 'fairness', 3], ['driver', 'trust', 2]] },
       { id: 'wait', label: 'Not yet', tags: ['cautious'], ops: [['stance', 'landsman', -6]] },
     ],
   },
   boredom: {
     kind: 'system', title: 'Dead weeks',
     weight: (s) => (s.commission.orders === 'blockade' && s.crew.drivers.prospects < 45 ? 4 : 0),
-    text: () => 'Week after week of the same grey water, the same headland, the same reef in and reef out. Nothing comes out. The men are dull and quarrelsome.',
+    text: () => 'Week after week of the same grey sea and the same headland. Nothing comes out of the port. The men are bored and quarrelsome.',
     options: () => [
-      { id: 'theatre', label: 'Allow theatricals and a fiddler on the forecastle', tags: ['care', 'lenient'], ops: [['driver', 'prospects', 6], ['driver', 'workload', 3], ['discipline', -1]] },
-      { id: 'exercise', label: 'Great-gun exercise against a towed target', tags: ['drill'], ops: [['skill', 'gunnery', 3], ['store', 'powder', -3], ['driver', 'prospects', 2], ['driver', 'workload', -2]] },
-      { id: 'work', label: 'Keep them busy: holystone the decks', tags: ['harsh', 'cheap'], ops: [['discipline', 2], ['driver', 'workload', -4]] },
+      { id: 'theatre', label: 'Allow plays, music and dancing on deck', tags: ['care', 'lenient'], ops: [['driver', 'prospects', 6], ['driver', 'workload', 3], ['discipline', -1]] },
+      { id: 'exercise', label: 'Gunnery practice at a towed target', tags: ['drill'], ops: [['skill', 'gunnery', 3], ['store', 'powder', -3], ['driver', 'prospects', 2], ['driver', 'workload', -2]] },
+      { id: 'work', label: 'Keep them busy scrubbing decks', tags: ['harsh', 'cheap'], ops: [['discipline', 2], ['driver', 'workload', -4]] },
     ],
   },
   'fresh-food': {
     kind: 'system', title: 'Fresh beef',
     weight: (s) => (s.crew.weeksSinceFresh > 5 && s.commission.orders !== 'cruise' ? 3 : 0),
-    text: (s) => `A victualler has come out to the ${s.commission.orders === 'blockade' ? 'squadron' : 'convoy'} with live bullocks and onions. There is a scramble among the captains for them.`,
+    text: (s) => `A supply ship has come out to the ${s.commission.orders === 'blockade' ? 'squadron' : 'convoy'} with live cattle and onions. Every captain wants them.`,
     options: () => [
-      { id: 'buy', label: 'Pay the victualler\'s master to favour you', tags: ['care'], ops: [['money', -30, 'Fresh provisions'], ['driver', 'provisions', 8], ['flag', 'freshFood'], ['health', 4]] },
+      { id: 'buy', label: 'Pay the supply ship\'s master to serve you first', tags: ['care'], ops: [['money', -30, 'Fresh provisions'], ['driver', 'provisions', 8], ['flag', 'freshFood'], ['health', 4]] },
       { id: 'share', label: 'Take your turn', tags: ['cheap', 'fair'], ops: [['driver', 'provisions', 3]] },
     ],
   },
   'desert-risk': {
     kind: 'system', title: 'Boats to the shore',
     weight: (s) => (s.commission.orders !== 'cruise' && morale(s) < 45 && s.crew.groups.pressed + s.crew.groups.able > 20 ? 3 : 0),
-    text: () => 'The boats are needed inshore for water. A boat\'s crew close to a friendly coast, with the ship unhappy, is a boat\'s crew that may not come back.',
+    text: () => 'The boats must go ashore for fresh water. Unhappy men in a boat near a friendly shore may not come back.',
     options: (s) => [
       { id: 'marines', label: 'Send marines in every boat', tags: ['harsh', 'cautious'], ops: [['driver', 'trust', -3], ['driver', 'fairness', -2]] },
       {
         id: 'trust', label: 'Send them as usual', tags: ['fair'],
-        check: { skill: 'trust', vs: 45, label: 'Whether they come back', pass: [['driver', 'trust', 3]], fail: [['men', 'pressed', -Math.min(6, s.crew.groups.pressed), 'deserted'], ['men', 'able', -3, 'deserted']] },
+        check: { skill: 'trust', vs: 45, label: 'Their trust in you', pass: [['driver', 'trust', 3]], fail: [['men', 'pressed', -Math.min(6, s.crew.groups.pressed), 'deserted'], ['men', 'able', -3, 'deserted']] },
       },
     ],
   },
   'anarchy': {
     kind: 'system', title: 'A slack ship',
     weight: (s) => (s.crew.discipline < ANARCHY ? 6 : 0),
-    text: () => 'Drink has got into the ship. Two men were found asleep at the masthead, the cable tier stinks, and a midshipman was laughed at on the forecastle. A slack ship goes to pieces in a gale, or in action.',
+    text: () => 'Discipline is falling apart. Two lookouts were found asleep, there is drink below decks, and a young officer was laughed at to his face. A slack ship goes to pieces in a gale, or in a fight.',
     options: () => [
-      { id: 'tighten', label: 'Tighten up: stop the grog of the whole watch', tags: ['fair', 'harsh'], ops: [['discipline', 8], ['driver', 'provisions', -6]] },
+      { id: 'tighten', label: 'Tighten up: stop the rum ration for the whole watch', tags: ['fair', 'harsh'], ops: [['discipline', 8], ['driver', 'provisions', -6]] },
       { id: 'flog', label: 'Flog the worst offenders, a dozen apiece', tags: ['harsh'], ops: [['punish', 1.5, 3], ['punish', 1.5, 3], ['punish', 1.5, 3], ['discipline', 6]] },
       { id: 'ignore', label: 'Let the officers deal with it', tags: ['lenient', 'cheap'], ops: [['discipline', -3]] },
     ],
@@ -382,9 +385,9 @@ export const EVENTS = {
   'eriksen': {
     kind: 'system', title: 'The captain of the foretop',
     weight: (s) => (man(s, 'captain-top') && s.crew.drivers.fairness > 50 ? 1 : 0),
-    text: (s) => `${man(s, 'captain-top').name} asks to be rated quartermaster. He is the best seaman aboard and the men follow him. He is also a foreigner, and the boatswain says it will cause talk.`,
+    text: (s) => `${man(s, 'captain-top').name} asks to be promoted to quartermaster, a petty officer who steers the ship. He is the best seaman aboard and the men follow him. He is also a foreigner, and the boatswain says it will cause talk.`,
     options: () => [
-      { id: 'rate', label: 'Rate him quartermaster', tags: ['fair', 'care'], ops: [['stance', 'captain-top', 15], ['skill', 'seamanship', 3], ['driver', 'fairness', 2], ['stance', 'bosun', -6]] },
+      { id: 'rate', label: 'Promote him', tags: ['fair', 'care'], ops: [['stance', 'captain-top', 15], ['skill', 'seamanship', 3], ['driver', 'fairness', 2], ['stance', 'bosun', -6]] },
       { id: 'refuse', label: 'Refuse', tags: ['cautious'], ops: [['stance', 'captain-top', -15], ['driver', 'fairness', -2]] },
     ],
   },

@@ -103,7 +103,7 @@ function makePost(s, lines) {
   s.player.postDay = s.day;
   s.player.postList = CONFIG.postListStart;
   s.player.postCheckDay = s.day;
-  lines.push(`You are made post: captain, with seniority from ${formatDay(s.day)}. From here promotion is by seniority alone.`);
+  lines.push(`You are made post: promoted to captain from ${formatDay(s.day)}. From now on you rise only by seniority, as the captains above you die or are promoted.`);
   log(s, 'Made post.', 'career');
 }
 
@@ -136,42 +136,42 @@ export function endCommission(s, cause = 'complete') {
   for (const p of s.prizesPending) {
     money(s, p.share, `Prize money: ${p.name}`);
     paid += p.share;
-    lines.push(`${p.burnt ? 'Head money' : 'Prize'}: the ${p.name}, valued at £${p.value}. Your share £${p.share}.`);
+    lines.push(`${p.burnt ? 'Head money for' : 'Prize money for'} the ${p.name} (valued at £${p.value}): your share is £${p.share}.`);
   }
   if (s.prizesPending.length) s.crew.drivers.prospects = clamp(s.crew.drivers.prospects + 4 * s.prizesPending.length);
   s.prizesPending = [];
 
   if (cause === 'complete') {
     const won = r.won - st.won;
-    if (won) { evaln += 3 * won; why.push(`${won} action${won > 1 ? 's' : ''} won`); }
+    if (won) { evaln += 3 * won; why.push(`${won} fight${won > 1 ? 's' : ''} won`); }
     const prizes = r.prizes - st.prizes;
-    if (prizes) { evaln += Math.min(4, prizes); why.push(`${prizes} prize${prizes > 1 ? 's' : ''}`); }
-    if (c.convoyLost) { evaln -= 4 * c.convoyLost; why.push(`${c.convoyLost} merchantm${c.convoyLost > 1 ? 'en' : 'an'} lost under your protection`); }
+    if (prizes) { evaln += Math.min(4, prizes); why.push(`${prizes} ship${prizes > 1 ? 's' : ''} captured`); }
+    if (c.convoyLost) { evaln -= 4 * c.convoyLost; why.push(`${c.convoyLost} merchant ship${c.convoyLost > 1 ? 's' : ''} lost while in your care`); }
     if (c.departed) {
       const v = c.departurePaid ? 3 + 4 * sup.initiative : -2 + 3 * sup.initiative;
       evaln += v;
-      why.push(c.departurePaid ? `left your orders and it paid (${sup.name} ${sup.initiative >= 0 ? 'approves' : 'does not like it even so'})` : `left your orders for nothing (${sup.name} ${sup.initiative > 0 ? 'forgives it' : 'notes it'})`);
+      why.push(c.departurePaid ? `you broke your orders and it paid off (${sup.initiative >= 0 ? 'he approves' : 'he dislikes it even so'})` : `you broke your orders and gained nothing (${sup.initiative > 0 ? 'he lets it pass' : 'he notes it'})`);
     }
     const rate = lashRate(s);
     if (sup.discipline && s.record.weeksAtSea > 4) {
       const v = clamp(sup.discipline * (rate - 100) / 50, -6, 6);
-      if (Math.abs(v) >= 1) { evaln += v; why.push(`punishment record (${rate} lashes per 100 men a year) ${v > 0 ? 'approved' : 'counted against you'} by ${sup.name}`); }
+      if (Math.abs(v) >= 1) { evaln += v; why.push(`your punishment record (${rate} lashes a year per 100 men) ${v > 0 ? 'meets with his approval' : 'counts against you'}`); }
     }
-    if (s.ship.hull < 40) { evaln -= 2; why.push('ship brought in badly knocked about'); }
-    if ((c.slackWeeks || 0) > c.weeks * 0.25) { evaln -= 6; why.push(`a slack ship: discipline gone for ${c.slackWeeks} of ${c.weeks} weeks`); }
+    if (s.ship.hull < 40) { evaln -= 2; why.push('the ship came home badly damaged'); }
+    if ((c.slackWeeks || 0) > c.weeks * 0.25) { evaln -= 6; why.push(`a slack ship: discipline broke down for ${c.slackWeeks} of ${c.weeks} weeks`); }
   }
   evaln = round1(evaln);
   // The service forgets: a tenth of the way back toward an ordinary name each
   // commission, so an early action does not carry a whole career.
   rep.service = clamp(rep.service + (40 - rep.service) * 0.1 + evaln);
   rep.public = clamp(rep.public + (15 - rep.public) * 0.1);
-  lines.unshift(`${sup.name}'s report: ${evaln >= 0 ? '+' : ''}${evaln} to your service reputation${why.length ? ` (${why.join('; ')})` : ' (an unremarkable commission)'}.`);
-  if (r.won - st.won > 0 && rep.public > 25) lines.push('Your letter is printed in the Gazette.');
+  lines.unshift(`${sup.name}'s report on you is ${evaln >= 4 ? 'warm' : evaln > 0 ? 'favourable' : evaln === 0 ? 'neutral' : evaln > -4 ? 'cool' : 'damning'} (${evaln >= 0 ? '+' : ''}${evaln} to your name in the navy). ${why.length ? `He notes: ${why.join('; ')}.` : 'Nothing out of the ordinary.'}`);
+  if (r.won - st.won > 0 && rep.public > 25) lines.push('Your report of the fight is printed in the London Gazette, the official newspaper. The public know your name.');
 
   // Interest follows the patron and your standing.
   const di = round1((rep.service - 40) / 15 + (s.patron.standing - 50) / 25);
   s.player.interest = clamp(s.player.interest + di);
-  lines.push(`Interest ${di >= 0 ? '+' : ''}${di}: your patron, ${s.patron.name}, and your name in the service.`);
+  lines.push(`Influence ${di >= 0 ? '+' : ''}${Math.round(di)}: from your patron, ${s.patron.name}, and your name in the navy.`);
 
   // Midshipmen and lieutenants recommended through the commission
   // Promotion to post
@@ -180,7 +180,7 @@ export function endCommission(s, cause = 'complete') {
     const th = promotionThreshold(s);
     s.flags.postChecks = (s.flags.postChecks || 0) + 1;
     if (sc >= th) makePost(s, lines);
-    else lines.push(`Not yet made post: performance ${sc} against the ${th} the Admiralty wants. Service reputation, interest and actions won raise it.`);
+    else lines.push(`Not promoted yet: the Admiralty wants a record of ${th} and yours is ${Math.round(sc)}. Fights won, your name in the navy and your influence all count.`);
   }
 
   s.reports.push({ day: s.day, title: `End of commission: ${formatDay(s.day)}`, lines });
@@ -202,8 +202,8 @@ export function interludeOptions(s) {
   const il = s.interlude;
   if (il.ending === 'amiens') {
     return [
-      { id: 'country', label: 'Live quietly in the country on half pay', tags: ['cheap', 'cautious'], stake: 'Half pay covers it, nearly. Interest fades.' },
-      { id: 'london', label: 'Take rooms in London and wait on the Admiralty', tags: ['bold', 'initiative'], stake: 'Costs £250. Interest up; your patron hears of you.' },
+      { id: 'country', label: 'Live quietly in the country on half pay', tags: ['cheap', 'cautious'], stake: 'Half pay nearly covers it. People at the Admiralty forget you: influence falls.' },
+      { id: 'london', label: 'Take rooms in London and keep calling at the Admiralty', tags: ['bold', 'initiative'], stake: 'Costs £250. Influence rises, and your patron hears of you.' },
     ];
   }
   if (il.ending === 'peace') return [{ id: 'continue', label: 'Go ashore', tags: ['fair'], stake: 'The war is over.' }];
@@ -213,16 +213,15 @@ export function interludeOptions(s) {
 export function interludeText(s) {
   const il = s.interlude;
   const next = ACTS[il.nextAct];
-  const head = interludeHead(s);
-  return next ? `${head}${head ? '\n\n' : ''}Act ${next.id}, ${next.title} (${next.years}). ${next.intro}` : head;
+  return { head: interludeHead(s), act: next ? { id: next.id, title: next.title, years: next.years, intro: next.intro } : null };
 }
 
 function interludeHead(s) {
   const il = s.interlude;
-  if (!il.ending) return 'The Glorious First of June is over and Lord Howe\'s dispatches are in London.';
-  if (il.ending === 'amiens') return 'The Peace of Amiens. Most of the fleet is paid off and you go ashore on half pay, with every other captain in England asking for the few ships kept in commission. It lasts fourteen months.';
-  if (il.ending === 'continental') return 'By 1807 Napoleon rules Europe from the Channel to the Vistula and has closed its ports to British trade. At sea there is no French fleet left to fight; what remains is convoys, blockades and the coast of Spain.';
-  if (il.ending === 'peace') return 'Waterloo. Napoleon goes to St Helena and the navy goes home. Within a year most of the fleet is laid up and most captains are ashore on half pay, for good.';
+  if (!il.ending) return 'The Glorious First of June is won, and the news is in London. At the Admiralty, they are deciding which young commanders deserve promotion.';
+  if (il.ending === 'amiens') return 'March 1802: the Peace of Amiens. Britain and France stop fighting. Most of the navy\'s ships are laid up and their captains sent home on half pay. You are one of them. The peace lasts fourteen months.';
+  if (il.ending === 'continental') return 'By 1807 Napoleon rules most of Europe and has closed its ports to British trade. After Trafalgar there is no French fleet left that can face the British at sea. What remains is convoys, blockades and the coast of Spain.';
+  if (il.ending === 'peace') return 'June 1815: Waterloo. Napoleon is sent into exile on St Helena and the long war is over. Within a year most of the fleet is laid up, and most captains go home on half pay for good.';
   return '';
 }
 
@@ -253,18 +252,18 @@ export function mutinyOutcome(s, kind, rng) {
   const d = s.crew.drivers;
   s.record.mutinies++;
   if (kind === 'violent' && d.fairness < 25) {
-    lines.push('They come for you on the quarterdeck. It is the Hermione again, and you are Pigot.');
+    lines.push('They come for you on deck. It is the Hermione again, and you are Pigot.');
     s.player.alive = false;
     return finish(s, 'mutiny', lines);
   }
   if (kind === 'violent' || kind === 'outbreak') {
-    lines.push('The mutineers put you and your officers into the launch and steer for an enemy port. You reach a British ship after three days.');
+    lines.push('The mutineers put you and your officers into a boat and sail the ship to an enemy port. After three days at sea you are picked up by a British ship.');
     s.ship.lost = true;
     s.record.shipsLost++;
     return courtMartial(s, 'seized', rng, lines);
   }
   if (kind === 'strike') {
-    lines.push('The men return to duty when you agree to forward their grievances. A court of inquiry follows; the Admiralty is not pleased with captains whose ships strike.');
+    lines.push('The men go back to work when you agree to pass their complaints to the Admiralty. An inquiry follows; the Admiralty does not like captains whose crews refuse duty.');
     const worst = Object.entries(d).sort((a, b) => a[1] - b[1])[0][0];
     d[worst] = clamp(d[worst] + 15);
     s.crew.grievance = 5;
@@ -279,7 +278,7 @@ export function mutinyOutcome(s, kind, rng) {
     return;
   }
   if (kind === 'suppressed') {
-    lines.push('The marines hold. The ringleaders are tried by court-martial and hanged at the yardarm, with the whole ship\'s company made to watch.');
+    lines.push('The marines hold. The leaders are tried by court-martial and hanged from the ship\'s yardarm, with the whole crew made to watch.');
     const ring = s.named.find((n) => n.id === 'ringleader' && n.status === 'aboard');
     if (ring) ring.status = 'hanged';
     s.crew.discipline = clamp(s.crew.discipline + 15);
@@ -304,16 +303,16 @@ export function courtMartial(s, cause, rng, lines = []) {
     lines.push('Court-martial for the loss of your ship, taken in action. The court asks whether everything possible was done.');
   } else if (cause === 'wreck') {
     pDismiss = clamp(0.35 - rep / 200, 0.05, 0.4);
-    lines.push('Court-martial for the loss of your ship by shipwreck. The master\'s log is read into the record.');
+    lines.push('Court-martial for the loss of your ship by shipwreck. The ship\'s log is read out in court.');
   } else {
     pDismiss = clamp(0.4 - rep / 200 + (s.crew.drivers.fairness < 30 ? 0.2 : 0), 0.05, 0.6);
     lines.push('Court-martial for the loss of your ship to her own crew. The court reads your punishment book.');
   }
   if (rng.chance(pDismiss)) {
-    lines.push('Sentence: dismissed the service.');
+    lines.push('Sentence: dismissed from the navy.');
     return finish(s, 'dismissed', lines);
   }
-  lines.push(cause === 'captured' ? 'Honourably acquitted. Your sword is returned to you.' : 'Acquitted, but the court\'s remarks are noted at the Admiralty.');
+  lines.push(cause === 'captured' ? 'Honourably acquitted: you did all a man could. Your sword is handed back to you.' : 'Acquitted, but the court\'s remarks are noted at the Admiralty.');
   s.player.rep.service = clamp(s.player.rep.service + (cause === 'captured' ? -2 : -12));
   s.player.interest = clamp(s.player.interest - (cause === 'captured' ? 2 : 8));
   s.ship.lost = true;

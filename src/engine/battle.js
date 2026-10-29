@@ -123,25 +123,25 @@ export function battleOptions(s) {
   if (!bt) return [];
   switch (bt.phase) {
     case 'approach': return [
-      { id: 'gauge', label: 'Work to windward for the weather gauge', tags: ['drill', 'fair', 'bold'], stake: `Seamanship: ${band(gaugeChance(bt))}. The gauge lets you choose the range and helps a rake.` },
-      { id: 'colours', label: 'Show false colours and close', tags: ['bold', 'initiative'], stake: `Seamanship: ${band(checkChance(bt.own.seamanship, bt.foe.seamanship - 10))}. Lawful until you open fire. Success: a first broadside unanswered.` },
-      { id: 'refuse', label: 'Refuse action and make sail', tags: ['cautious'], stake: `Speed and seamanship: ${band(escapeChance(bt))}. ${sizeRatio(bt) > 1 ? 'She is the weaker ship: the service will notice.' : 'No shame against a heavier ship.'}` },
+      { id: 'gauge', label: 'Get upwind of her', tags: ['drill', 'fair', 'bold'], stake: `Chance: ${band(gaugeChance(bt)).toLowerCase()} (seamanship). Being upwind (the "weather gauge") lets you choose the range, and helps a rake.` },
+      { id: 'colours', label: 'Fly a French flag and get close', tags: ['bold', 'initiative'], stake: `Chance: ${band(checkChance(bt.own.seamanship, bt.foe.seamanship - 10)).toLowerCase()}. Allowed, so long as you raise your true flag before firing. If it works, you fire first and she cannot reply.` },
+      { id: 'refuse', label: 'Run for it', tags: ['cautious'], stake: `Chance: ${band(escapeChance(bt)).toLowerCase()} (speed and seamanship). ${sizeRatio(bt) > 1 ? 'She is weaker than you: the navy will notice you ran.' : 'No shame in avoiding a stronger ship.'}` },
     ];
     case 'engage': return [
-      { id: 'long', label: 'Engage at long range', tags: ['cautious', 'drill'], stake: 'Three broadsides at long range. Slower and safer; the better gunnery tells.' },
-      { id: 'close', label: 'Close to pistol shot', tags: ['bold', 'fair'], stake: 'Two broadsides yardarm to yardarm. Decisive and bloody for both.' },
-      { id: 'rake', label: 'Cross her bow and rake her', tags: ['bold', 'initiative'], stake: `Seamanship: ${band(rakeChance(bt))}${bt.gauge === 'own' ? ', with the gauge' : bt.gauge === 'foe' ? ', against the gauge' : ''}. Success: a raking broadside down her length. Failure: she rakes you.` },
+      { id: 'long', label: 'Fight at long range', tags: ['cautious', 'drill'], stake: 'Three exchanges of fire at a distance. Slower and safer; the better gunners win.' },
+      { id: 'close', label: 'Close in, side by side', tags: ['bold', 'fair'], stake: 'Two exchanges at point-blank range. Quick, decisive and bloody for both.' },
+      { id: 'rake', label: 'Cross her bow and rake her', tags: ['bold', 'initiative'], stake: `Chance: ${band(rakeChance(bt)).toLowerCase()} (seamanship${bt.gauge === 'own' ? ', helped by being upwind' : bt.gauge === 'foe' ? ', hindered by her being upwind' : ''}). If it works, you fire down her whole length while she cannot reply. If not, she does it to you.` },
     ];
     case 'decide': return [
-      { id: 'pound', label: 'Batter her until she strikes', tags: ['fair', 'cautious', 'obey'], stake: `Up to ${B().poundVolleys} more broadsides at close range.` },
-      { id: 'board', label: 'Board her', tags: ['bold'], stake: `Boarding: ${band(boardChance(bt))}. You have ${bt.own.crewNow} men to her ${bt.foe.crewNow}. Brutal and costly either way.` },
-      { id: 'break', label: 'Break off the action', tags: ['cautious'], stake: `Getting clear: ${band(escapeChance(bt))}. ${sizeRatio(bt) > 1 ? 'Breaking off from a weaker ship will be remembered.' : 'Breaking off from a heavier ship is no disgrace.'}` },
+      { id: 'pound', label: 'Keep firing until she surrenders', tags: ['fair', 'cautious', 'obey'], stake: `Up to ${B().poundVolleys} more exchanges at close range.` },
+      { id: 'board', label: 'Board her', tags: ['bold'], stake: `Chance: ${band(boardChance(bt)).toLowerCase()}. You have ${bt.own.crewNow} men to her ${bt.foe.crewNow}. Hand-to-hand fighting on her deck: brutal and costly either way.` },
+      { id: 'break', label: 'Break off and get away', tags: ['cautious'], stake: `Chance: ${band(escapeChance(bt)).toLowerCase()}. ${sizeRatio(bt) > 1 ? 'Running from a weaker ship will be remembered.' : 'No disgrace in leaving a stronger ship.'}` },
     ];
     case 'aftermath': {
       const prizeCrew = prizeCrewSize(bt);
       return [
-        { id: 'prize', label: 'Put a prize crew aboard and send her in', tags: ['bold', 'fair', 'obey'], stake: `${prizeCrew} men leave the ship. She is worth about £${Math.round(bt.foe.value / 100) * 100}; your share comes on reaching port.` },
-        { id: 'burn', label: 'Take off her people and burn her', tags: ['cautious', 'cheap'], stake: `No men lost to a prize crew. Head money only: £5 a man of her crew, shared.` },
+        { id: 'prize', label: 'Put a crew aboard and send her home as a prize', tags: ['bold', 'fair', 'obey'], stake: `${prizeCrew} of your men sail her home. She is worth about £${Math.round(bt.foe.value / 100) * 100}; your share is paid when you reach port.` },
+        { id: 'burn', label: 'Take off her crew and burn her', tags: ['cautious', 'cheap'], stake: `You keep all your men. The navy pays only "head money": £5 for each man of her crew, shared out.` },
       ];
     }
     default: return [{ id: 'continue', label: 'Continue', tags: ['fair'], stake: '' }];

@@ -78,11 +78,11 @@ export function checkChance(skill, difficulty) {
   return clamp(0.5 + (skill - difficulty) / 60, 0.05, 0.95);
 }
 export function band(p) {
-  if (p >= 0.8) return 'Likely';
-  if (p >= 0.6) return 'Favourable';
+  if (p >= 0.8) return 'Very good';
+  if (p >= 0.6) return 'Good';
   if (p >= 0.4) return 'Even';
-  if (p >= 0.2) return 'Risky';
-  return 'Long odds';
+  if (p >= 0.2) return 'Poor';
+  return 'Very poor';
 }
 
 export function mutinyStage(grievance) {
@@ -91,22 +91,34 @@ export function mutinyStage(grievance) {
   return st;
 }
 
-export const STAGE_LABELS = ['Quiet', 'Muttering', 'Petitions', 'Refusing duty', 'Open mutiny'];
+export const STAGE_LABELS = ['Quiet', 'Muttering', 'Petitions', 'Refusing to work', 'Mutiny'];
 
 /** The warning signs a captain could see, from state. Shown in the Crew tab. */
 export function warningSigns(s) {
   const out = [];
   const m = morale(s);
-  if (s.crew.stage >= 1) out.push('Men fall silent when officers pass.');
-  if (s.crew.stage >= 2) out.push('A round robin is passing below decks.');
-  if (s.crew.discipline < ANARCHY) out.push('Orders are obeyed slowly or not at all. Drunkenness on watch.');
-  if (s.crew.drivers.fairness < 30) out.push('The men think punishment aboard is arbitrary.');
-  if (s.crew.drivers.provisions < 30) out.push('Complaints about the food are open.');
+  if (s.crew.stage >= 1) out.push('The men fall silent when officers pass.');
+  if (s.crew.stage >= 2) out.push('A petition is going round below decks.');
+  if (s.crew.discipline < ANARCHY) out.push('Orders are obeyed slowly or not at all, and there is drinking on duty.');
+  if (s.crew.drivers.fairness < 30) out.push('The men think the punishments are unfair.');
+  if (s.crew.drivers.provisions < 30) out.push('The men complain openly about the food.');
   if (s.crew.drivers.workload < 30) out.push('The men are worn out.');
-  if (s.crew.drivers.prospects < 30) out.push('Talk of a "dead ship": no prizes, no hope.');
-  if (s.crew.drivers.trust < 30) out.push('The men do not trust their captain.');
-  if (!out.length && m >= 60) out.push('A willing ship. The men sing at the capstan.');
+  if (s.crew.drivers.prospects < 30) out.push('The men call her an unlucky ship: no prizes, no hope.');
+  if (s.crew.drivers.trust < 30) out.push('The men do not trust you.');
+  if (!out.length && m >= 60) out.push('A happy ship. The men sing as they work.');
   return out;
+}
+
+/** One sentence on the state of the ship, for the main screen. */
+export function statusLine(s) {
+  const m = morale(s);
+  const mood = m >= 65 ? 'The men are cheerful' : m >= 50 ? 'The men are steady' : m >= 35 ? 'The men are sullen' : 'The men are close to breaking';
+  const issues = [];
+  if (s.crew.discipline < ANARCHY) issues.push('discipline is slipping');
+  if (s.crew.health < 70) issues.push('many are sick');
+  if (s.ship.hull < 50 || s.ship.rigging < 40) issues.push('the ship needs repairs');
+  if (s.ship.stores.food < 3) issues.push('food is running short');
+  return `${mood}${issues.length ? `, but ${issues.join(' and ')}` : ''}.`;
 }
 
 export function lemonJuice(s) {

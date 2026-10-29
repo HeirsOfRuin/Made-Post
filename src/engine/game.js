@@ -26,14 +26,41 @@ import { startBattle, battleChoose, battleOptions, closeBattle } from './battle.
 import { portActions, portChoose } from './port.js';
 import { startCommission, endCommission, afterReport, interludeOptions, interludeChoose, interludeText, mutinyOutcome, courtMartial, finish, offeredClass, promotionScore, promotionThreshold } from './career.js';
 import { score, obituary, rankTitle, ENDINGS } from './ending.js';
+import { setupChoose, setupView } from './setup.js';
 import { formatDay, monthYear } from './calendar.js';
+import { GLOSSARY } from '../data/glossary.data.js';
 import { log } from './state.js';
 
 export const ORDER_CHOICES = {
-  drill: { label: 'Drill', values: { none: 'None', seamanship: 'Seamanship', gunnery: 'Great guns', mixed: 'Both' } },
-  rations: { label: 'Rations', values: { full: 'Full', short: 'Short (six upon four)' } },
+  discipline: { label: 'Punishment', values: { lenient: 'Light', firm: 'Firm', harsh: 'Harsh' } },
+  drill: { label: 'Training', values: { none: 'None', seamanship: 'Sailing', gunnery: 'Guns', mixed: 'Both' } },
   work: { label: 'Work', values: { light: 'Light', normal: 'Normal', hard: 'Hard' } },
-  discipline: { label: 'Punishment', values: { lenient: 'Lenient', firm: 'Firm', harsh: 'Harsh' } },
+  rations: { label: 'Food', values: { full: 'Full', short: 'Short' } },
+};
+
+// One plain sentence per setting, shown under the current choice. The numbers
+// behind them are in CONFIG; the same values drive week.js.
+export const ORDER_HINTS = {
+  discipline: {
+    lenient: 'Punishments lighter than the offence. The men like it, but discipline slips.',
+    firm: 'Punishment that fits the offence. The men think it fair.',
+    harsh: 'Punishments heavier than the offence, including floggings beyond the regulation 12 lashes. Order comes fast; the men think it unfair.',
+  },
+  drill: {
+    none: 'No training. The men rest, and their skill slowly fades.',
+    seamanship: 'Sail drill: the crew get better at handling the ship.',
+    gunnery: `Live firing at the guns: gunnery improves fastest. Uses ${CONFIG.drill.gunnery.powder} barrels of powder a week.`,
+    mixed: `Some of each. Both improve, more slowly. Uses ${CONFIG.drill.mixed.powder} barrel${CONFIG.drill.mixed.powder === 1 ? '' : 's'} of powder a week.`,
+  },
+  work: {
+    light: 'An easy routine. The men rest, but the ship is less well kept and sails less sharply.',
+    normal: 'The usual routine.',
+    hard: 'Constant work. A smart, well-sailed ship, and tired men.',
+  },
+  rations: {
+    full: 'Full rations.',
+    short: 'Six men eat what four should: food lasts longer and the men hate it.',
+  },
 };
 
 export function newGame(opts) {
@@ -48,6 +75,11 @@ export function choose(prev, input) {
       const spec = ORDER_CHOICES[input.key];
       if (!spec || !(input.value in spec.values)) throw new Error(`bad order ${input.key}=${input.value}`);
       s.orders[input.key] = input.value;
+      return s;
+    }
+    case 'setup': {
+      if (s.phase !== 'setup') throw new Error(`setup in phase ${s.phase}`);
+      if (setupChoose(s, input.id)) { s.setup = null; startCommission(s); }
       return s;
     }
     case 'port': {
@@ -216,9 +248,11 @@ export function view(s) {
     followers: s.followers,
     orders: { ...s.orders },
     orderChoices: ORDER_CHOICES,
-    orderEffects: orderEffects(s),
+    orderHints: Object.fromEntries(Object.keys(ORDER_HINTS).map((k) => [k, ORDER_HINTS[k][s.orders[k]]])),
+    status: s.crew && s.ship ? D.statusLine(s) : '',
+    glossary: GLOSSARY,
     commission: c && {
-      label: ORDER_TYPES[c.orders].label, brief: ORDER_TYPES[c.orders].brief, station: STATIONS[c.station],
+      label: ORDER_TYPES[c.orders].label, brief: ORDER_TYPES[c.orders].brief, station: STATIONS[c.station], story: currentNote(s),
       week: c.week, weeks: c.weeks, superior: SUPERIORS[c.superior].name, superiorNote: SUPERIORS[c.superior].note,
     },
     career: {
@@ -233,6 +267,7 @@ export function view(s) {
     lastBattle: s.lastBattle || null,
     reports: s.reports.slice(-6).reverse(),
   };
+  if (s.phase === 'setup') v.setup = setupView(s);
   if (s.phase === 'port') v.port = { name: s.port.name, actions: portActions(s), next: nextCommissionNote(s) };
   if (s.phase === 'sea') v.advance = { label: 'Next week', locked: null };
   if (s.phase === 'decision' && s.pending) {
@@ -256,13 +291,36 @@ export function view(s) {
   return v;
 }
 
-/** What a named man says, from his stance and the ship's worst driver (risk: morale as a hidden number). */
+/**
+ * What a named man says: his own concern, in his own manner, coloured by how he
+ * feels about you. Each reads the driver his role cares about, so the men
+ * disagree with each other the way a real crew would.
+ */
 function voice(s, m) {
-  const worst = Object.entries(s.crew.drivers).sort((a, b) => a[1] - b[1])[0];
-  const topic = { fairness: 'the punishments', trust: 'the quarterdeck', provisions: 'the beef', workload: 'the work', prospects: 'a dead ship with no prizes' }[worst[0]];
-  if (m.stance >= 25) return worst[1] < 40 ? `"The lads are sore about ${topic}, sir. I'd not say it if I didn't mean well."` : '"A good ship, this. The men know it."';
-  if (m.stance <= -25) return worst[1] < 40 ? `Says loudly on the lower deck that ${topic} is past bearing.` : 'Keeps his own counsel, and the men listen to it.';
-  return worst[1] < 40 ? `Grumbles about ${topic}.` : 'Does his duty and says little.';
+  const d = s.crew.drivers;
+  const warm = m.stance >= 25, cold = m.stance <= -25;
+  const low = (k) => d[k] < 40;
+  switch (m.role) {
+    case 'boatswain':
+      if (s.crew.discipline < 35) return '"The people are getting above themselves, sir. A slack ship is a dangerous ship."';
+      return low('workload') ? '"They\'re tired, sir. Tired men drop things from aloft."' : '"Ship\'s in good order, sir."';
+    case 'gunner':
+      if (s.ship.stores.powder < 15) return '"We\'re near out of powder for practice, sir."';
+      return s.orders.drill === 'gunnery' ? (warm ? '"They\'re coming on handsomely at the guns, sir."' : 'Mutters about powder burned on practice.') : '"The guns crews are rusty, sir. A bit of firing would do them good."';
+    case 'ringleader':
+      if (cold) return low('fairness') || low('provisions') ? 'Says openly that men are flogged for nothing here and fed on rot.' : 'Watches you, and says little. The men listen when he does speak.';
+      return warm ? 'Works hard, and keeps the other pressed men in line.' : 'Does his work and keeps his opinions to himself, for now.';
+    case 'sea lawyer':
+      if (low('fairness')) return 'Is keeping a list of every punishment, and says he will send it to the Admiralty.';
+      return low('provisions') ? 'Complains, citing the regulations, that the food is short weight.' : (warm ? 'Admits the ship is run by the book.' : 'Finds something to complain about, as always.');
+    case 'promising landsman':
+      return s.crew.skill.seamanship > 55 ? '"I can hand, reef and steer now, sir."' : 'Still learning the ropes, and learning fast.';
+    case 'captain of the foretop':
+      if (low('prospects')) return '"The lads want a prize, sir. Any prize."';
+      return warm ? '"Best topmen in the squadron, sir."' : 'Proud of his topmen, and sharp with anyone who is slow.';
+    default:
+      return 'Does his duty and says little.';
+  }
 }
 
 function sideView(x) {
@@ -279,16 +337,7 @@ function nextCommissionNote(s) {
   return { orders: ORDER_TYPES[def.orders].label, station: STATIONS[def.station], note: def.note, weeks: def.weeks, superior: SUPERIORS[def.superior].name };
 }
 
-/** What each standing order does per week, from CONFIG (the same numbers week.js uses). */
-function orderEffects(s) {
-  const dr = CONFIG.drill[s.orders.drill];
-  const w = CONFIG.work[s.orders.work];
-  const r = CONFIG.rations[s.orders.rations];
-  const sign = (x) => (x > 0 ? `+${x}` : `${x}`);
-  return [
-    `Drill: gunnery ${sign(dr.gunnery)}, seamanship ${sign(dr.seamanship)} a week before diminishing returns; ${dr.powder === 1 ? 'one barrel' : `${dr.powder} barrels`} of powder a week.`,
-    `Rest ${sign(dr.workload + w.workload)} a week; ship wear x${w.wear}; seamanship counted at x${w.seamanshipMult}.`,
-    `Rations: ${r.food === 1 ? 'one week' : `${r.food} of a week`} of food a week; provisions ${sign(r.provisions)}.`,
-    `Punishment: each offence punished ${s.orders.discipline === 'firm' ? 'to fit it' : s.orders.discipline === 'harsh' ? 'harder than it deserves' : 'lighter than it deserves'}. ${s.orders.discipline === 'harsh' ? `Floggings go beyond the regulation dozen.` : ''}`,
-  ];
+function currentNote(s) {
+  const def = ACTS[s.act]?.commissions.find((c) => c.id === s.commission?.id);
+  return def ? def.note : '';
 }

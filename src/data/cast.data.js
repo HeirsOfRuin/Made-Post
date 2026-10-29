@@ -3,17 +3,17 @@
 export const BACKGROUNDS = {
   naval: {
     label: 'Naval family',
-    blurb: 'Your father and uncle were captains. You have interest and very little money.',
+    blurb: 'Your father was a captain. Admirals know your name; your purse is thin.',
     interest: 40, money: 300, seamanship: 55, gunnery: 45, trustBonus: 0, patron: 'Admiral Sir Richard Hale, your father\'s old first lieutenant',
   },
   gentry: {
     label: 'Gentry younger son',
-    blurb: 'A younger son with a small allowance and a cousin in Parliament.',
+    blurb: 'A gentleman\'s younger son, with an allowance and a cousin in Parliament.',
     interest: 28, money: 1500, seamanship: 48, gunnery: 45, trustBonus: 0, patron: 'Mr Edward Sallow MP, your cousin',
   },
   lowerdeck: {
     label: 'Up from the lower deck',
-    blurb: 'You came aft through the hawse-hole: pressed at sixteen, rated able, then master\'s mate, then a commission. No interest. The men know you know the work.',
+    blurb: 'Pressed into the navy at sixteen, you worked your way up from ordinary sailor. Nobody important knows you. The men know you know the work.',
     interest: 8, money: 60, seamanship: 70, gunnery: 52, trustBonus: 15, patron: 'Captain William Dorne, who gave you your quarterdeck',
   },
 };

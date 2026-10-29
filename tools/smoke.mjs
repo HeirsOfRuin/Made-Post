@@ -60,7 +60,7 @@ for (let i = 0; i < STEPS; i++) {
   const date = (await page.locator('.turn').textContent())?.trim();
   dates.add(date);
   let sel = null, phase = null;
-  for (const [s, p] of [['[data-act="end-turn"]', 'sea'], ['[data-act="battle"]', 'battle'], ['[data-act="option"]', 'decision'],
+  for (const [s, p] of [['[data-act="setup"]', 'setup'], ['[data-act="end-turn"]', 'sea'], ['[data-act="battle"]', 'battle'], ['[data-act="option"]', 'decision'],
     ['[data-act="close"]', 'report'], ['[data-act="interlude"]', 'interlude'], ['[data-act="port"][data-id="volunteers"]:not([disabled])', 'port'],
     ['[data-act="port"][data-id="press"]:not([disabled])', 'port'], ['[data-act="port"][data-id="sail"]:not([disabled])', 'port'], ['[data-act="restart"]', 'ended']]) {
     if (await page.locator(s).count()) { sel = s; phase = p; break; }
@@ -77,7 +77,7 @@ for (let i = 0; i < STEPS; i++) {
   await page.locator(sel).first().click();
 }
 check(`the date moved through the UI (${dates.size} distinct dates)`, dates.size >= 10);
-check('reached sea, a decision and a report', ['sea', 'decision', 'report'].every((p) => phasesSeen.has(p)), [...phasesSeen].join(','));
+check('reached the opening, sea, a decision and a report', ['setup', 'sea', 'decision', 'report'].every((p) => phasesSeen.has(p)), [...phasesSeen].join(','));
 flush('play');
 
 for (const t of ['crew', 'officers', 'career', 'log', 'ship']) {

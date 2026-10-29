@@ -30,39 +30,39 @@ export function portActions(s) {
   const minManning = 0.5;
   return [
     {
-      id: 'volunteers', label: 'Open a rendezvous for volunteers',
-      note: `About ${volunteerYield(s)} seamen, able and ordinary, come in on your name. Costs £25 for the rendezvous and the posters.`,
+      id: 'volunteers', label: 'Recruit volunteers',
+      note: `About ${volunteerYield(s)} willing seamen, more if sailors think well of you. Costs £25.`,
       locked: done.volunteers ? 'Done this time in port.' : !room(s) ? 'The ship is fully manned.' : s.money < 25 ? 'You cannot afford the £25.' : null,
     },
     {
       id: 'press', label: 'Send the press gang out',
-      note: `About ${pressYield(s)} men taken by force from merchant ships and waterfronts. Fast, and the men remember it: grievance grows.`,
+      note: `About ${pressYield(s)} men taken by force. Quick, but they did not choose to come, and unrest grows.`,
       locked: done.press ? 'Done this time in port.' : !room(s) ? 'The ship is fully manned.' : null,
     },
     {
-      id: 'quota', label: 'Take quota men',
-      note: `About ${quotaYield(s)} landsmen sent by the counties under the Quota Acts. Willing enough, and useless until trained.`,
+      id: 'quota', label: 'Take men sent by the counties',
+      note: `About ${quotaYield(s)} men the counties must send under the Quota Acts. Willing, but they have never been to sea.`,
       locked: done.quota ? 'Done this time in port.' : s.day < QUOTA_DAY ? 'The first Quota Act is not passed until March 1795.' : !room(s) ? 'The ship is fully manned.' : null,
     },
     {
       id: 'powder', label: `Buy 10 barrels of powder for practice (£${10 * CONFIG.powderPerBarrel})`,
-      note: `Powder above the Admiralty's allowance comes from your own purse. Aboard: ${Math.round(s.ship.stores.powder)} barrels; gunnery drill uses ${CONFIG.drill.gunnery.powder} a week.`,
+      note: `Extra powder for gun practice, from your own pocket. You have ${Math.round(s.ship.stores.powder)} barrels; gun training uses ${CONFIG.drill.gunnery.powder} a week.`,
       locked: (done.powder || 0) >= 3 ? 'The ordnance wharf will sell you no more this time.' : s.money < 10 * CONFIG.powderPerBarrel ? `You cannot afford £${10 * CONFIG.powderPerBarrel}.` : null,
     },
     {
-      id: 'liberty', label: 'Give the men liberty ashore',
-      note: 'Rest and drink and women: rest and trust rise. Some men will not come back, more of them pressed men and more if the ship is unhappy.',
+      id: 'liberty', label: 'Give the men shore leave',
+      note: 'The men rest and think better of you. Some will not come back, especially pressed men, and more if the ship is unhappy.',
       locked: done.liberty ? 'Done this time in port.' : null,
     },
     {
       id: 'recommend', label: 'Recommend a midshipman for lieutenant',
-      note: followers.length ? `${followers[0].name} (competence ${followers[0].competence}). Spends interest; he becomes one of your followers, and his success adds to yours.` : 'No midshipman is ready (competence 50 or more).',
-      locked: done.recommend ? 'Done this time in port.' : !followers.length ? 'No midshipman is ready.' : s.player.interest < 10 ? 'Your interest is too low to get anyone promoted.' : null,
+      note: followers.length ? `${followers[0].name} is ready. Uses some of your influence; he will be loyal to you for life, and it counts to your credit.` : 'None of your midshipmen is ready yet.',
+      locked: done.recommend ? 'Done this time in port.' : !followers.length ? 'No midshipman is ready.' : s.player.interest < 10 ? 'You do not have enough influence to get anyone promoted.' : null,
     },
     {
       id: 'sail', label: 'Put to sea',
-      note: `Manned ${crewTotal(s)} of ${complement(s)}.`,
-      locked: manning(s) < minManning ? `She cannot be worked short-handed: ${crewTotal(s)} of ${complement(s)}, and at least ${Math.ceil(complement(s) * minManning)} are needed.` : null,
+      note: `Crew: ${crewTotal(s)} of ${complement(s)}.`,
+      locked: manning(s) < minManning ? `Too few men to sail her: you have ${crewTotal(s)} and need at least ${Math.ceil(complement(s) * minManning)}.` : null,
       primary: true,
     },
   ];

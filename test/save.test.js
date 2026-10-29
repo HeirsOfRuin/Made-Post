@@ -6,8 +6,7 @@ import { newGame, choose, view } from '../src/engine/game.js';
 
 test('a save code round-trips a game mid-career and play continues identically', () => {
   let s = newGame({ seed: 5 });
-  s = choose(s, { type: 'port', id: 'press' });
-  s = choose(s, { type: 'port', id: 'sail' });
+  for (const id of ['go', 'ranks', 'press', 'firm']) s = choose(s, { type: 'setup', id });
   for (let i = 0; i < 4 && s.phase === 'sea'; i++) s = choose(s, { type: 'advance' });
   const back = importCode(exportCode(s));
   assert.deepEqual(back, JSON.parse(JSON.stringify(s)));

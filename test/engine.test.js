@@ -4,12 +4,14 @@ import assert from 'node:assert/strict';
 import { newGame, choose, view } from '../src/engine/game.js';
 import { play, POLICIES } from '../sim/bot.js';
 import { crewTotal } from '../src/engine/derive.js';
+import { openPort } from '../src/engine/state.js';
 
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];
-const PHASES = new Set(['port', 'sea', 'decision', 'battle', 'report', 'interlude', 'ended']);
+const PHASES = new Set(['setup', 'port', 'sea', 'decision', 'battle', 'report', 'interlude', 'ended']);
 
 function invariants(s, where) {
   assert.ok(PHASES.has(s.phase), `${where}: unknown phase ${s.phase}`);
+  if (s.phase === 'setup') return;
   for (const [k, n] of Object.entries(s.crew.groups)) assert.ok(Number.isInteger(n) && n >= 0, `${where}: group ${k} = ${n}`);
   for (const [k, x] of Object.entries(s.crew.drivers)) assert.ok(x >= 0 && x <= 100, `${where}: driver ${k} = ${x}`);
   for (const k of ['discipline', 'grievance', 'health']) assert.ok(s.crew[k] >= 0 && s.crew[k] <= 100, `${where}: ${k} = ${s.crew[k]}`);
@@ -31,7 +33,7 @@ test('same seed and policy give the same career, byte for byte', () => {
 test('choose() never mutates the state it is given', () => {
   const s = newGame({ seed: 3 });
   const before = JSON.stringify(s);
-  choose(s, { type: 'port', id: 'press' });
+  choose(s, { type: 'setup', id: 'go' });
   choose(s, { type: 'orders', key: 'drill', value: 'gunnery' });
   assert.equal(JSON.stringify(s), before);
 });
@@ -70,9 +72,9 @@ test('the view has every screen the phase needs, with no raw tokens', () => {
       policy: 'fair',
       each: (s) => {
         const v = view(s);
-        const need = { port: 'port', decision: 'decision', battle: 'battle', report: 'report', interlude: 'interlude', ended: 'ending' }[s.phase];
+        const need = { setup: 'setup', port: 'port', decision: 'decision', battle: 'battle', report: 'report', interlude: 'interlude', ended: 'ending' }[s.phase];
         if (need) assert.ok(v[need], `phase ${s.phase} has no ${need} in the view`);
-        const text = JSON.stringify({ d: v.decision, b: v.battle, r: v.report, i: v.interlude, e: v.ending, n: v.named, p: v.port });
+        const text = JSON.stringify({ s: v.setup, d: v.decision, b: v.battle, r: v.report, i: v.interlude, e: v.ending, n: v.named, p: v.port });
         assert.ok(!bad.test(text), `raw token in view at ${v.date}: ${text.match(bad)}`);
       },
     });
@@ -81,13 +83,24 @@ test('the view has every screen the phase needs, with no raw tokens', () => {
 
 test('bad input is refused, not absorbed', () => {
   const s = newGame({ seed: 1 });
-  assert.throws(() => choose(s, { type: 'advance' }), /advance in phase port/);
+  assert.throws(() => choose(s, { type: 'advance' }), /advance in phase setup/);
+  assert.throws(() => choose(s, { type: 'setup', id: 'nonsense' }), /no option/);
   assert.throws(() => choose(s, { type: 'orders', key: 'drill', value: 'cannonade' }));
   assert.throws(() => choose(s, { type: 'warp' }));
 });
 
+test('the opening goes letter, officers, men, command, then to sea', () => {
+  let s = newGame({ seed: 4 });
+  const seen = [];
+  while (s.phase === 'setup') { const v = view(s); seen.push(v.setup.id); s = choose(s, { type: 'setup', id: v.setup.options[0].id }); }
+  assert.deepEqual(seen, ['letter', 'officers', 'men', 'command']);
+  assert.equal(s.phase, 'sea');
+  assert.ok(crewTotal(s) >= 100, `only ${crewTotal(s)} men after the opening`);
+});
+
 test('a locked port action does nothing', () => {
   const s = newGame({ seed: 1 });
+  openPort(s, 'Portsmouth');
   const v = view(s);
   const quota = v.port.actions.find((a) => a.id === 'quota');
   assert.ok(quota.locked, 'quota men should be locked before 1795');

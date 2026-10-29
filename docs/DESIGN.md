@@ -33,6 +33,7 @@ flagged for the author.
 | D13 | **Made post** at the end of Act 1 if performance (service, interest, actions won, prizes) reaches 55; otherwise rechecked at each return with the bar 8 lower each time. | Brief Act 1. | `career.js` |
 | D14 | **The service forgets.** Service reputation moves a tenth of the way back toward 40 each commission. | Without it every career pinned at 100 by Act 3 and later actions meant nothing. | `career.js endCommission()` |
 | D15 | **Open questions 2-5 taken on the brief's recommendations:** lower-deck background available from the start; no map (abstract stations); text only, plus a generated icon. Refusing a posting (Q3) is **not built**; see section 6. | Brief section 12. | - |
+| D16 | **The opening is four story screens, not a port.** Officers come from one of four sources; the first lieutenant (the teacher) is always Mr Prowse; the surgeon is always the Navy Board's appointment. | The author asked for information to be eased in by choices. | `src/engine/setup.js` |
 
 ## 2. Architecture
 
@@ -229,4 +230,5 @@ Brief section 11 asks for this. Each is marked VERIFY in the code.
 
 | Date | Entry |
 |---|---|
+| 2026-10-29 | **The opening and readability** (`docs/FRAME-opening-and-readability.md`). The author: "It is a lot all up front... the game should start with taking command of your first sloop, and ease the information in by letting you choose a few things." Four opening screens (letter, officers, men, kind of captain) replace the first port; detail folded away; orders card per voyage; plain words with a glossary; four accuracy fixes (12-lash rule source, *Hermione*, two admirals). Measured (200 runs per policy): harsh captains murdered 15.5% → 22.0% (the harsh bot now opens with pressed men); other policies within noise. |
 | 2026-10-28 | **Phase 1 framework built from the brief.** The author: "Let's build this out. I want a working framework that we can then decide and build upon." All of section 10's scope at bare-bones depth, the three success tests asserted, 6 bot policies x 200 careers measured (section 4). Decisions D1-D15 taken on the author's behalf and listed for review. |
