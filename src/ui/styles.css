@@ -100,7 +100,12 @@ details summary { cursor: pointer; padding: .3rem 0; }
 .orders-card { border-left: 3px solid var(--accent); padding: .1rem .7rem .4rem; margin: .5rem 0 .8rem; }
 .orders-card p { margin: .3rem 0; }
 .fold { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: .2rem .9rem; margin: .8rem 0; }
-.fold > summary { font-weight: 600; padding: .55rem 0; min-height: 44px; display: flex; align-items: center; }
+.fold > summary { padding: .55rem 0; min-height: 44px; display: flex; align-items: center; gap: .6rem; cursor: pointer; list-style: none; }
+.fold > summary::-webkit-details-marker { display: none; }
+.fold-title { font-weight: 600; white-space: nowrap; }
+.fold-peek { flex: 1; text-align: right; color: var(--muted); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fold-arrow { width: .55rem; height: .55rem; border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(-45deg); transition: transform .15s; flex: none; margin-right: .2rem; }
+.fold[open] .fold-arrow { transform: rotate(45deg); }
 .fold[open] > summary { border-bottom: 1px solid var(--line); margin-bottom: .4rem; }
 .panel .fold { border: 0; padding: 0; margin: .4rem 0 0; background: transparent; }
 .order small { color: var(--muted); font-size: .85rem; }

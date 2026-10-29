@@ -19,7 +19,9 @@ const title = { background: 'naval', message: '' };
 const esc = (x) => String(x ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = (n) => `${n < 0 ? '-' : ''}£${Math.abs(Math.round(n)).toLocaleString('en-GB')}`;
 const bar = (label, v, note = '') => `<div class="bar"><span class="bar-label">${esc(label)}</span><span class="bar-track"><span class="bar-fill ${v < 30 ? 'low' : v < 50 ? 'mid' : ''}" style="width:${Math.max(0, Math.min(100, v))}%"></span></span><span class="bar-num">${Math.round(v)}</span>${note ? `<span class="bar-note">${esc(note)}</span>` : ''}</div>`;
-const fold = (summary, body, open = false) => `<details class="fold"${open ? ' open' : ''}><summary>${esc(summary)}</summary>${body}</details>`;
+// A folded section: a one- or two-word title, a short preview of what is
+// inside, and an arrow that turns when it opens.
+const fold = (title, preview, body, open = false) => `<details class="fold"${open ? ' open' : ''}><summary><span class="fold-title">${esc(title)}</span><span class="fold-peek">${esc(preview)}</span><span class="fold-arrow" aria-hidden="true"></span></summary>${body}</details>`;
 
 function act(input) {
   try {
@@ -58,7 +60,7 @@ function renderTitle() {
         </button>`).join('')}
     </div>
     <button class="primary big" data-act="new">Begin</button>
-    ${fold('Load a saved game from a code', '<textarea id="code" placeholder="MADP1...."></textarea><button data-act="import">Load</button>')}
+    ${fold('Load game', 'From a save code', '<textarea id="code" placeholder="MADP1...."></textarea><button data-act="import">Load</button>')}
     ${title.message ? `<p class="warn">${esc(title.message)}</p>` : ''}
     ${STORAGE_OK ? '' : '<p class="warn">This browser will not keep saves. Use "Save code" on the Career tab to keep your game.</p>'}
   </main>`;
@@ -106,7 +108,7 @@ function shipTab(v) {
 }
 
 function ordersFold(v, open = false) {
-  return fold('How the ship is run', `
+  return fold('Orders', `${v.orderChoices.discipline.values[v.orders.discipline]} punishment · ${v.orderChoices.drill.values[v.orders.drill]} training`, `
     <p class="hint">Your standing orders. They apply every week until you change them.</p>
     ${Object.entries(v.orderChoices).map(([key, spec]) => `
       <div class="order"><span>${esc(spec.label)}</span><div class="seg">
@@ -116,7 +118,7 @@ function ordersFold(v, open = false) {
 
 function conditionFold(v) {
   const s = v.ship;
-  return fold('Ship and stores', `
+  return fold('Ship', `Hull ${s.hull} · food ${Math.round(s.stores.food)} wks`, `
     <p><b>${esc(s.cls)}</b>, ${esc(s.guns)}.</p>
     ${s.trait ? `<p class="trait"><b>${esc(s.trait.label)}.</b> ${esc(s.trait.note)}</p>` : ''}
     ${bar('Hull', s.hull)}${bar('Masts and sails', s.rigging)}
@@ -136,7 +138,7 @@ function portPanel(v) {
     <div class="actions">${open.map((a) => `
       <div class="action"><button data-act="port" data-id="${a.id}">${esc(a.label)}</button><p>${esc(a.note)}</p></div>`).join('') || '<p class="hint">Nothing more to do here.</p>'}</div>
     <div class="action primary-row"><button class="primary big" data-act="port" data-id="sail" ${sail.locked ? 'disabled' : ''}>Put to sea</button><p>${esc(sail.note)}${sail.locked ? ` <span class="lock">${esc(sail.locked)}</span>` : ''}</p></div>
-    ${shut.length ? fold('Not available now', `<ul class="plain">${shut.map((a) => `<li><b>${esc(a.label)}</b>: ${esc(a.locked)}</li>`).join('')}</ul>`) : ''}
+    ${shut.length ? fold('Unavailable', `${shut.length} locked`, `<ul class="plain">${shut.map((a) => `<li><b>${esc(a.label)}</b>: ${esc(a.locked)}</li>`).join('')}</ul>`) : ''}
   </section>${ordersFold(v)}${conditionFold(v)}`;
 }
 
@@ -188,7 +190,7 @@ function battlePanel(v) {
       <button class="choice" data-choice="${o.id}" data-act="battle" data-id="${o.id}">
         <b>${esc(o.label)}</b>${o.stake ? `<span class="stake">${esc(o.stake)}</span>` : ''}
       </button>`).join('')}</div>
-    ${fold('Strength of each ship', `<p class="stores">You: ${b.own.broadside} lb of shot per broadside, gunnery ${b.own.gunnery}, sailing ${b.own.seamanship}.</p><p class="stores">Her: ${b.enemy.broadside} lb, gunnery ${b.enemy.gunnery}, sailing ${b.enemy.seamanship}.</p>`)}
+    ${fold('Strength', `${b.own.broadside} lb v ${b.enemy.broadside} lb`, `<p class="stores">You: ${b.own.broadside} lb of shot per broadside, gunnery ${b.own.gunnery}, sailing ${b.own.seamanship}.</p><p class="stores">Her: ${b.enemy.broadside} lb, gunnery ${b.enemy.gunnery}, sailing ${b.enemy.seamanship}.</p>`)}
   </section>`;
 }
 
@@ -196,7 +198,7 @@ function reportPanel(v) {
   const r = v.report;
   return `<section class="panel"><p class="step">Home from sea</p><h2>${esc(r.title)}</h2>
     <ul class="report">${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>
-    ${v.lastBattle ? fold(`Your last fight: ${v.lastBattle.foe}`, `<ol class="battle-log">${v.lastBattle.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>`) : ''}
+    ${v.lastBattle ? fold('Last fight', v.lastBattle.foe, `<ol class="battle-log">${v.lastBattle.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>`) : ''}
     <button class="primary big" data-act="close" data-choice="report">Continue</button>
   </section>`;
 }
@@ -242,10 +244,10 @@ function crewTab(v) {
     <ul class="signs">${c.signs.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
   </section>
   <section class="panel"><h3>Men you know by name</h3>
-    ${v.named.map((m) => `<div class="person ${m.status !== 'aboard' && m.status !== 'rated' ? 'gone' : ''}"><b>${esc(m.name)}</b>, ${esc(m.role)}<br>${m.says ? `<i>${esc(m.says)}</i>` : `<small>${esc({ dead: 'Dead', hanged: 'Hanged', ashore: 'Sent ashore', deserted: 'Deserted' }[m.status] || '')}</small>`}${fold('About him', `<p>${esc(m.note)} From ${esc(m.origin)}.</p>`)}</div>`).join('')}
+    ${v.named.map((m) => `<div class="person ${m.status !== 'aboard' && m.status !== 'rated' ? 'gone' : ''}"><b>${esc(m.name)}</b>, ${esc(m.role)}<br>${m.says ? `<i>${esc(m.says)}</i>` : `<small>${esc({ dead: 'Dead', hanged: 'Hanged', ashore: 'Sent ashore', deserted: 'Deserted' }[m.status] || '')}</small>`}<br><small>${esc(m.note)} From ${esc(m.origin)}.</small></div>`).join('')}
   </section>
-  ${fold('Health and skill', `${bar('Health', c.health, `${c.sick} on the sick list`)}${bar('Sailing', c.effective.seamanship, `Trained to ${c.skill.seamanship}; less if men are tired, sick or few`)}${bar('Gunnery', c.effective.gunnery, `Trained to ${c.skill.gunnery}`)}`)}
-  ${fold(`Who is aboard: ${c.total} of ${c.complement}`, `<table class="groups">${c.groups.map((g) => `<tr><td><b>${esc(g.label)}</b><br><small>${esc(g.note)}</small></td><td>${g.n}</td></tr>`).join('')}</table>`)}`;
+  ${fold('Health', `${c.health} · ${c.sick} sick`, `${bar('Health', c.health, `${c.sick} on the sick list`)}<h3>Skill</h3>${bar('Sailing', c.effective.seamanship, `Trained to ${c.skill.seamanship}; less if men are tired, sick or few`)}${bar('Gunnery', c.effective.gunnery, `Trained to ${c.skill.gunnery}`)}`)}
+  ${fold('Crew list', `${c.total} of ${c.complement} men`, `<table class="groups">${c.groups.map((g) => `<tr><td><b>${esc(g.label)}</b><br><small>${esc(g.note)}</small></td><td>${g.n}</td></tr>`).join('')}</table>`)}`;
 }
 
 function officersTab(v) {
@@ -259,7 +261,7 @@ function officersTab(v) {
 function careerTab(v) {
   const p = v.career.posting;
   return `<section class="panel"><h2>${esc(v.captain.rank)} ${esc(v.captain.name)}</h2>
-    <p>${esc(v.captain.rank)}${v.captain.postList ? `, number ${v.captain.postList} on the list of captains waiting to rise` : ''}. Money ${money(v.captain.money)}. Influence ${v.captain.interest}.</p>
+    <p>Money ${money(v.captain.money)} · Influence ${v.captain.interest}${v.captain.postList ? ` · number ${v.captain.postList} on the captains' list` : ''}</p>
     <p class="hint">Patron: ${esc(v.patron.name)}.</p>
     ${bar('Name in the navy', v.captain.rep.service)}${bar('Name with the public', v.captain.rep.public)}${bar('Name with sailors', v.captain.rep.men)}
     ${v.career.promotion ? `<p class="outcome">To be promoted to captain you need a record of ${v.career.promotion.threshold}. Yours is ${Math.round(v.career.promotion.score)}. Fights won, your name in the navy and your influence all count.</p>` : ''}
@@ -267,14 +269,14 @@ function careerTab(v) {
     <p>${v.record.actions} fights (${v.record.won} won, ${v.record.lost} lost) · ${v.record.prizes} ships captured · ${v.record.shipsLost} ships lost.</p>
     <p>${v.record.lashes} lashes ordered: ${esc(v.career.conduct)}. ${v.record.killed} men killed in action, ${v.record.died} died of sickness or accident, ${v.record.deserted} deserted.</p>
   </section>
-  ${fold(`How the Admiralty gives out ships (your score: ${p.total})`, `<p class="hint">${v.career.offered ? esc(v.career.offered.reason) : ''} Below 30, you may be left without a ship.</p><table class="score">${Object.entries(p.parts).map(([k, n]) => `<tr><td>${esc({ interest: 'Influence', service: 'Name in the navy', public: 'Name with the public', record: 'Ships lost and mutinies' }[k] || k)}</td><td>${n}</td></tr>`).join('')}</table>`)}
-  ${fold('Reports', v.reports.map((r) => `<h3>${esc(r.title)}</h3><ul class="plain">${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`).join('') || '<p>None yet.</p>')}
-  ${fold('Money', `<table class="ledger">${v.ledger.slice(0, 15).map((l) => `<tr><td>${esc(l.date)}</td><td>${esc(l.reason)}</td><td>${money(l.amount)}</td></tr>`).join('')}</table>`)}
-  ${fold('Save and quit', `<p class="hint">The game saves after every move on this device. A save code moves it to another device.</p><button data-act="export">Show save code</button> <button data-act="quit">Back to title</button><div id="codebox"></div>`)}`;
+  ${fold('Postings', `Score ${p.total}`, `<p class="hint">How the Admiralty decides which ship you get. ${v.career.offered ? esc(v.career.offered.reason) : ''} Below 30, you may be left without a ship.</p><table class="score">${Object.entries(p.parts).map(([k, n]) => `<tr><td>${esc({ interest: 'Influence', service: 'Name in the navy', public: 'Name with the public', record: 'Ships lost and mutinies' }[k] || k)}</td><td>${n}</td></tr>`).join('')}</table>`)}
+  ${fold('Reports', v.reports.length ? `${v.reports.length} on file` : 'None yet', v.reports.map((r) => `<h3>${esc(r.title)}</h3><ul class="plain">${r.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ul>`).join('') || '<p>None yet.</p>')}
+  ${fold('Money', money(v.captain.money), `<table class="ledger">${v.ledger.slice(0, 15).map((l) => `<tr><td>${esc(l.date)}</td><td>${esc(l.reason)}</td><td>${money(l.amount)}</td></tr>`).join('')}</table>`)}
+  ${fold('Save', 'Code or quit', `<p class="hint">The game saves after every move on this device. A save code moves it to another device.</p><button data-act="export">Show save code</button> <button data-act="quit">Back to title</button><div id="codebox"></div>`)}`;
 }
 
 function logTab(v) {
-  return `${fold('Words used in this game', `<dl class="gloss">${v.glossary.map(([w, d]) => `<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join('')}</dl>`)}
+  return `${fold('Glossary', `${v.glossary.length} terms`, `<dl class="gloss">${v.glossary.map(([w, d]) => `<dt>${esc(w)}</dt><dd>${esc(d)}</dd>`).join('')}</dl>`)}
   <section class="panel"><h2>Ship's log</h2><ul class="log">${v.log.map((l) => `<li class="k-${esc(l.kind)}"><small>${esc(l.date)}</small> ${esc(l.text)}</li>`).join('')}</ul></section>`;
 }
 
