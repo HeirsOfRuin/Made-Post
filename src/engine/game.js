@@ -288,7 +288,7 @@ export function view(s) {
   if (s.phase === 'sea') {
     v.advance = { label: 'Next week', locked: null };
     v.sea = {
-      courses: courseChoices(s), course: s.commission.course,
+      courses: courseChoices(s), course: s.commission.course || 'patrol', // saves from before courses existed
       actions: seaActions(s), plan: s.commission.plan, week: s.weekReport || [],
     };
   }
