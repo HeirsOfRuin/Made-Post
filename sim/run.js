@@ -14,7 +14,8 @@ export function progress(s) {
   const miss = [];
   if (s.phase !== 'ended') miss.push(`never ended (phase ${s.phase} after ${s.botSteps} steps)`);
   if (s.turn < 1) miss.push('the clock never moved');
-  if (s.ending?.kind === 'peace' && s.record.weeksAtSea < 40) miss.push(`survived to the peace with only ${s.record.weeksAtSea} weeks at sea`);
+  // A career mostly on the beach (no ship offered) is a real outcome; under 15 weeks at sea is not.
+  if (s.ending?.kind === 'peace' && s.record.weeksAtSea < 15) miss.push(`survived to the peace with only ${s.record.weeksAtSea} weeks at sea`);
   return miss;
 }
 

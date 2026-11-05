@@ -132,6 +132,7 @@ function portPanel(v) {
   const shut = v.port.actions.filter((a) => a.locked && !a.primary);
   const sail = v.port.actions.find((a) => a.primary);
   return `<section class="panel"><h2>In port: ${esc(v.port.name)}</h2>
+    ${v.port.mail.length ? fold('Letters', `${v.port.mail.length} waiting`, `<ul class="mail">${v.port.mail.map((m) => `<li><b>${esc(m.from)}.</b> ${esc(m.text)}</li>`).join('')}</ul>`, true) : ''}
     ${n ? `<div class="orders-card"><p class="step">Your next orders</p><b>${esc(n.orders)}, ${esc(n.station)}</b><p>${esc(n.note)}</p><small>About ${n.weeks} weeks, under ${esc(n.superior)}.</small></div>` : ''}
     <p>${esc(v.status)}</p>
     <h3>Before you sail</h3>
@@ -163,6 +164,7 @@ function seaPanel(v) {
   const course = sea.courses && sea.courses.find((x) => x.id === sea.course);
   const planned = sea.actions.find((a) => a.id === sea.plan);
   return `<section class="panel"><p class="step">Week ${c.week} of ${c.weeks} · ${esc(c.label)}, ${esc(c.station)}</p>
+    ${sea.goal ? `<p class="goal ${sea.goal.met ? 'met' : ''}">${esc(sea.goal.line)}</p>` : ''}
     <p class="story">${esc(v.status)}</p>
     ${outcomeLine(v)}
     ${sea.week.length ? `<ul class="week">${sea.week.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
@@ -275,6 +277,7 @@ function careerTab(v) {
     <p class="hint">Patron: ${esc(v.patron.name)}.</p>
     ${bar('Name in the navy', v.captain.rep.service)}${bar('Name with the public', v.captain.rep.public)}${bar('Name with sailors', v.captain.rep.men)}
     ${v.career.promotion ? `<p class="outcome">To be promoted to captain you need a record of ${v.career.promotion.threshold}. Yours is ${Math.round(v.career.promotion.score)}. Fights won, your name in the navy and your influence all count.</p>` : ''}
+    ${v.rival ? `<p class="hint">Your rival, ${esc(v.rival.name)}: ${v.rival.status === 'dead' ? 'dead of fever in the West Indies.' : `${v.rival.posted ? 'a post-captain' : 'a commander'}, ${v.rival.won} fights won, ${v.rival.prizes} prizes.`}</p>` : ''}
     <h3>Your record</h3>
     <p>${v.record.actions} fights (${v.record.won} won, ${v.record.lost} lost) · ${v.record.prizes} ships captured · ${v.record.shipsLost} ships lost.</p>
     <p>${v.record.lashes} lashes ordered: ${esc(v.career.conduct)}. ${v.record.killed} men killed in action, ${v.record.died} died of sickness or accident, ${v.record.deserted} deserted.</p>

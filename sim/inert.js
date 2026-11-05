@@ -35,7 +35,7 @@ const orders = inertCheck({
     officers: { default: 'shipmates', try: ['ranks', 'connected', 'admiralty'] },
     men: { default: 'mixed', try: ['seamen', 'press', 'landsmen'] },
     command: { default: 'firm', try: ['taut', 'easy'] },
-    sea: { default: null, try: [{ course: 'inshore', plan: null }, { course: 'offshore', plan: null }, { course: 'patrol', plan: 'rest' }, { course: 'inshore', plan: 'raid' }, { course: 'patrol', plan: 'home' }] },
+    sea: { default: null, try: [{ course: 'inshore', plan: null }, { course: 'offshore', plan: null }, { course: 'patrol', plan: 'rest' }, { course: 'inshore', plan: 'raid' }, { course: 'patrol', plan: 'home' }, { course: 'patrol', plan: 'neutrals' }, { course: 'patrol', plan: 'look' }, { course: 'patrol', plan: 'fishing' }, { course: 'patrol', plan: 'gather' }, { course: 'patrol', plan: 'scout' }, { course: 'patrol', plan: 'crack' }] },
   },
 });
 const traits = inertCheck({ play: run, digest, seeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], knobs: knob('trait', Object.keys(SHIP_TRAITS)) });

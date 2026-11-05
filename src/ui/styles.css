@@ -118,3 +118,7 @@ details summary { cursor: pointer; padding: .3rem 0; }
 .week { padding-left: 1.1rem; font-size: .92rem; margin: .4rem 0; }
 .week li { margin: .2rem 0; }
 .plan h3 { margin-top: .5rem; }
+.goal { font-weight: 600; margin: .2rem 0 .4rem; }
+.goal.met { color: var(--good); }
+.mail { list-style: none; padding: 0; }
+.mail li { border-left: 3px solid var(--line); padding: .2rem .6rem; margin: .5rem 0; font-size: .95rem; }

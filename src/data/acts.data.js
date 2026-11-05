@@ -75,7 +75,7 @@ export const ACTS = [
       {
         id: 'a4c1', start: '1809-04-16', weeks: 10, orders: 'convoy', station: 'lisbon',
         superior: 'berkeley', enemies: { merchant: 2, privateer: 4, french: 2 },
-        note: 'Guard the supply ships carrying men and stores to Wellington\'s army in Portugal.',
+        note: 'Guard the supply ships carrying men and stores to Sir Arthur Wellesley\'s army in Portugal.',
       },
       {
         id: 'a4c2', start: '1812-10-04', weeks: 12, orders: 'cruise', station: 'northatlantic',

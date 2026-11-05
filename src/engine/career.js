@@ -11,6 +11,9 @@ import { clamp, postingScore, lashRate, round1, crewTotal } from './derive.js';
 import { dayOf, formatDay, yearOf } from './calendar.js';
 import { assignShip, openPort, log, money, makeOfficers } from './state.js';
 import { fireHistory } from './week.js';
+import { makeGoal, goalStatus } from '../content/missions.js';
+import { SET_PIECES } from '../content/voyage.js';
+import { makeMail, growPeople, RIVAL } from '../content/story.js';
 
 export function currentCommissionDef(s) {
   const act = ACTS[s.act];
@@ -33,7 +36,9 @@ export function startCommission(s) {
     id: def.id, orders: def.orders, station: def.station, superior: def.superior,
     weeks: def.weeks, week: 0, enemies: { ...def.enemies }, finale: def.finale || null,
     tutorial: !!def.tutorial, departed: false, departurePaid: false, convoyLost: 0,
-    course: 'patrol', plan: null, raidCooldown: 0,
+    course: 'patrol', plan: null, cool: {}, recon: 0, guard: 0, intel: 1,
+    goal: makeGoal(def.orders, def.weeks, streamFor(s.seed, s.turn, 'goal')),
+    setPieces: (SET_PIECES[def.id] || []).map((x) => ({ id: x.id, week: streamFor(s.seed, s.turn, `sp:${x.id}`).range(x.weeks[0], x.weeks[1]), done: false })),
     startRecord: { ...s.record }, startDay: s.day,
   };
   s.phase = 'sea';
@@ -73,10 +78,34 @@ export function prepareCommission(s) {
     const prevName = s.ship && !s.ship.lost ? s.ship.name : null;
     assignShip(s, off.cls, rng, { fresh: !s.crew });
     if (s.ship.name === prevName) s.ship.name = `${s.ship.name} II`;
-    s.officers = makeOfficers(s, rng).map((o, i) => (s.officers[i] && s.officers[i].status === 'aboard' && s.officers[i].loyalty >= 55 && o.post !== 'mid1' && o.post !== 'mid2' ? { ...s.officers[i], curbed: s.officers[i].curbed } : o));
+    s.officers = carryOfficers(s, rng);
     log(s, `Appointed to the ${SHIP_CLASSES[off.cls].name} ${s.ship.name}. ${off.reason}`, 'career');
   }
   openPort(s, def.station === 'med' ? 'Gibraltar' : def.station === 'lisbon' ? 'Plymouth' : def.station === 'northatlantic' ? 'Halifax' : 'Portsmouth');
+  s.port.mail = makeMail(s, streamFor(s.seed, s.turn, 'mail'));
+}
+
+/**
+ * Officers for a new ship. Loyal officers follow their captain, by post. An
+ * empty first lieutenant's place goes to a lieutenant you had promoted, if one
+ * is free: captains built their wardrooms from their own followers.
+ */
+function carryOfficers(s, rng) {
+  const fresh = makeOfficers(s, rng);
+  const out = fresh.map((o) => {
+    const old = s.officers.find((x) => x.post === o.post && x.status === 'aboard' && x.loyalty >= 55);
+    return old ? { ...old } : o;
+  });
+  const first = out.find((o) => o.post === 'first');
+  const isNew = !s.officers.some((x) => x.status === 'aboard' && x.name === first.name);
+  const serving = new Set(s.officers.filter((x) => x.status === 'aboard').map((x) => x.name.replace(/^Mr /, '')));
+  const follower = [...s.followers].reverse().find((f) => f !== 'Abel Prowse' && !serving.has(f) && !(s.flags.followerServed || []).includes(f));
+  if (isNew && follower) {
+    Object.assign(first, { name: `Mr ${follower}`, competence: rng.range(62, 78), loyalty: rng.range(78, 92), fault: 'none', curbed: false, follower: true });
+    (s.flags.followerServed ||= []).push(follower);
+    (s.freshNews ||= []).push(`Lieutenant ${follower}, whom you had promoted from midshipman, has asked to serve as your first lieutenant. The Admiralty has agreed.`);
+  }
+  return out;
 }
 
 function nextCommission(s) {
@@ -165,6 +194,11 @@ export function endCommission(s, cause = 'complete') {
       if (Math.abs(v) >= 1) { evaln += v; why.push(`your punishment record (${rate} lashes a year per 100 men) ${v > 0 ? 'meets with his approval' : 'counts against you'}`); }
     }
     if (s.ship.hull < 40) { evaln -= 2; why.push('the ship came home badly damaged'); }
+    // The voyage's own goal (content/missions.js), judged by the order type.
+    const g = goalStatus(s);
+    if (g) {
+      if (g.met) { evaln += 3; why.push(`${g.line.toLowerCase()}: what was asked of you`); } else { evaln -= 2; why.push(`${g.line.toLowerCase()}: less than was asked`); }
+    }
     if ((c.slackWeeks || 0) > c.weeks * 0.25) { evaln -= 6; why.push(`a slack ship: discipline broke down for ${c.slackWeeks} of ${c.weeks} weeks`); }
   }
   evaln = round1(evaln);
@@ -190,6 +224,11 @@ export function endCommission(s, cause = 'complete') {
     else lines.push(`Not promoted this time: the Admiralty looked for a record of ${th}, and yours is ${Math.round(sc)}. Your next chance comes when you return from your next voyage, and the bar will be lower: the navy needs captains. Fights won, prizes, your name in the navy and your influence all count.`);
   }
 
+  s.flags.commissionsDone = (s.flags.commissionsDone || 0) + 1;
+  growPeople(s, streamFor(s.seed, s.turn, 'grow'));
+  if (s.rival && s.rival.status === 'serving' && cause === 'complete') {
+    lines.push(`Your rival Carrow: ${s.rival.won} fight${s.rival.won === 1 ? '' : 's'} won, ${s.rival.prizes} prizes. You: ${r.won} won, ${r.prizes} prizes.`);
+  }
   s.reports.push({ day: s.day, title: `End of commission: ${formatDay(s.day)}`, lines });
   log(s, `Commission over. ${lines[0]}`, 'career');
   s.lastReport = s.reports[s.reports.length - 1];

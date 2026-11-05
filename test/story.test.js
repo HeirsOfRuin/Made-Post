@@ -3,7 +3,7 @@
 // then shown "Act 2: Made Post. Captain of a frigate..." (author's playtest).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { play } from '../sim/bot.js';
+import { play, POLICIES } from '../sim/bot.js';
 import { view } from '../src/engine/game.js';
 import { TUTORIAL } from '../src/content/events.js';
 
@@ -47,4 +47,41 @@ test('the first lieutenant\'s lessons all come up in Act 1, at varying times', (
   }
   const varied = Object.values(weeks).filter((w) => w.size > 1).length;
   assert.ok(varied >= 3, 'lessons arrive in the same week every game');
+});
+
+test('every voyage has a goal the sea screen shows, and the report judges it', () => {
+  let seen = 0, judged = 0;
+  play(3, {
+    policy: 'fair',
+    each: (s) => {
+      if (s.phase === 'sea' && s.commission.week > 0) { const v = view(s); assert.ok(v.sea.goal && v.sea.goal.line, `no goal on ${s.commission.id}`); seen++; }
+      if (s.phase === 'report' && /what was asked of you|less than was asked/.test(s.lastReport.lines[0])) judged++;
+    },
+  });
+  assert.ok(seen > 20 && judged >= 3, `goal shown ${seen} weeks, judged in ${judged} reports`);
+});
+
+test('each kind of voyage offers its own actions', () => {
+  const byOrders = {};
+  for (const seed of [1, 2]) play(seed, { policy: 'fair', each: (s) => { if (s.phase === 'sea') byOrders[s.commission.orders] = view(s).sea.actions.map((a) => a.id).sort().join(','); } });
+  const sets = Object.values(byOrders);
+  assert.equal(new Set(sets).size, sets.length, `two kinds of voyage share the same actions: ${JSON.stringify(byOrders)}`);
+});
+
+test('letters wait in port, and a seized neutral comes back as a prize court verdict', () => {
+  let letters = 0, court = 0;
+  for (const seed of SEEDS.slice(0, 25)) {
+    let lastDay = null;
+    play(seed, {
+      policy: { ...POLICIES.fair, prefer: ['initiative', 'bold', 'fair', 'care', 'obey'] },
+      each: (s) => {
+        if (s.phase !== 'port' || s.day === lastDay || !s.port.mail) return;
+        lastDay = s.day;
+        letters += s.port.mail.length;
+        court += s.port.mail.filter((m) => /prize court/.test(m.text)).length;
+      },
+    });
+  }
+  assert.ok(letters > 100, `only ${letters} letters in 25 careers`);
+  assert.ok(court > 0, 'no prize court verdict ever came back');
 });

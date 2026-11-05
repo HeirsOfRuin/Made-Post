@@ -11,7 +11,7 @@ import { log, officer } from './state.js';
 const B = () => CONFIG.battle;
 
 /** Build the two sides. The enemy's numbers are drawn once and kept in state. */
-export function startBattle(s, kind, rng) {
+export function startBattle(s, kind, rng, support = null) {
   const e = ENEMIES[kind];
   const eff = effective(s);
   const c = SHIP_CLASSES[s.ship.cls];
@@ -37,6 +37,16 @@ export function startBattle(s, kind, rng) {
   };
   // Where you were sailing decides what a merchant is worth: coasters inshore,
   // rich ocean traders offshore.
+  // Not every fight is single-handed. In a squadron action the enemy is already
+  // under fire from other ships; a friend's sloop has had her in action an hour.
+  if (support) {
+    const f = s.battle.foe;
+    const hit = support === 'squadron' ? 0.4 : 0.2;
+    f.hull = Math.round(100 * (1 - hit));
+    f.crewNow = Math.round(f.crewStart * (1 - hit * 0.6));
+    f.morale = clamp(f.morale - (support === 'squadron' ? 20 : 10));
+    s.battle.lines.push(support === 'squadron' ? 'She is already under fire from the squadron when you close.' : 'His sloop has been fighting her for an hour; she is hurt.');
+  }
   s.battle.foe.value = Math.round(rng.range(e.prize[0], e.prize[1]) * (kind === 'merchant' ? (COURSES[s.commission?.course]?.prizeValue ?? 1) : 1));
   // The day's fortune: a lucky shot, a sprung spar, the wind backing. Drawn once per fight.
   s.battle.own.fortune = rng.float(1 - B().fortune, 1 + B().fortune);

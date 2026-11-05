@@ -29,6 +29,7 @@ import { score, obituary, rankTitle, ENDINGS } from './ending.js';
 import { setupChoose, setupView } from './setup.js';
 import { formatDay, monthYear } from './calendar.js';
 import { GLOSSARY } from '../data/glossary.data.js';
+import { seaActions, goalStatus } from '../content/missions.js';
 import { log } from './state.js';
 
 export const ORDER_CHOICES = {
@@ -195,7 +196,7 @@ function resolveOption(s, id) {
     }
   }
   if (out.battle) {
-    startBattle(s, out.battle, rng);
+    startBattle(s, out.battle, rng, out.support);
     return;
   }
   if (ev.kind === 'finale') { endCommission(s); return; }
@@ -259,9 +260,10 @@ export function view(s) {
       signs: D.warningSigns(s),
       offences: s.weekOffences || 0,
     },
-    named: s.named.map((m) => ({ name: m.name, role: m.role, origin: m.origin, note: m.note, status: m.status, mood: m.stance >= 25 ? 'Loyal' : m.stance <= -25 ? 'Hostile' : 'Wary', says: s.crew && m.status === 'aboard' ? voice(s, m) : '' })),
+    named: s.named.map((m) => ({ name: m.name, role: m.role, origin: m.origin, note: m.note, status: m.status, mood: m.stance >= 25 ? 'Loyal' : m.stance <= -25 ? 'Hostile' : 'Wary', says: s.crew && (m.status === 'aboard' || m.status === 'rated') ? voice(s, m) : '' })),
     officers: s.officers.filter((o) => o.status === 'aboard').map((o) => ({ label: o.label, name: o.name, competence: o.competence, loyalty: Math.round(o.loyalty), fault: FAULTS[o.fault].label, faultNote: o.curbed ? 'Curbed by you.' : FAULTS[o.fault].note })),
     followers: s.followers,
+    rival: s.rival && { name: 'Captain Edmund Carrow', status: s.rival.status, won: s.rival.won, prizes: s.rival.prizes, posted: s.rival.posted },
     orders: { ...s.orders },
     orderChoices: ORDER_CHOICES,
     orderHints: Object.fromEntries(Object.keys(ORDER_HINTS).map((k) => [k, ORDER_HINTS[k][s.orders[k]]])),
@@ -284,12 +286,12 @@ export function view(s) {
     reports: s.reports.slice(-6).reverse(),
   };
   if (s.phase === 'setup') v.setup = setupView(s);
-  if (s.phase === 'port') v.port = { name: s.port.name, actions: portActions(s), next: nextCommissionNote(s) };
+  if (s.phase === 'port') v.port = { name: s.port.name, actions: portActions(s), next: nextCommissionNote(s), mail: s.port.mail || [] };
   if (s.phase === 'sea') {
     v.advance = { label: 'Next week', locked: null };
     v.sea = {
       courses: courseChoices(s), course: s.commission.course || 'patrol', // saves from before courses existed
-      actions: seaActions(s), plan: s.commission.plan, week: s.weekReport || [],
+      actions: seaActions(s), plan: s.commission.plan, week: s.weekReport || [], goal: goalStatus(s),
     };
   }
   if (s.phase === 'decision' && s.pending) {
@@ -322,6 +324,8 @@ function voice(s, m) {
   const d = s.crew.drivers;
   const warm = m.stance >= 25, cold = m.stance <= -25;
   const low = (k) => d[k] < 40;
+  if (m.status === 'rated' && m.id === 'ringleader') return warm ? 'Boatswain\'s mate now, and the pressed men listen to him. "They\'ll work for you, sir, so long as you\'re straight with them."' : 'Boatswain\'s mate now, and watching to see if you keep faith.';
+  if (m.status === 'rated' && m.id === 'lawyer') return low('provisions') ? 'Your clerk. He says the purser\'s books do not add up, and shows you where.' : 'Your clerk. The purser\'s accounts have never been so honest.';
   switch (m.role) {
     case 'boatswain':
       if (s.crew.discipline < 35) return '"The people are getting above themselves, sir. A slack ship is a dangerous ship."';
@@ -364,33 +368,6 @@ export function courseChoices(s) {
   const c = s.commission;
   if (!c || !COURSE_ORDERS.includes(c.orders)) return null;
   return Object.entries(COURSES).map(([id, x]) => ({ id, label: x.label, hint: x.hint[c.orders] }));
-}
-
-/** The captain's optional actions this week, each with the reason it is locked. */
-export function seaActions(s) {
-  const c = s.commission;
-  if (!c) return [];
-  const half = Math.ceil(c.weeks / 2);
-  const out = [
-    {
-      id: 'raid', label: 'Boat raid',
-      hint: 'Send the boats into an enemy harbour at night to cut out a ship at anchor. A prize if it works; men lost if it does not.',
-      locked: !COURSE_ORDERS.includes(c.orders) ? 'Not while escorting or carrying dispatches.' : c.course !== 'inshore' ? 'Only when sailing inshore.' : c.raidCooldown ? `The boats' crews need ${c.raidCooldown} more week${c.raidCooldown === 1 ? '' : 's'}.` : D.manning(s) < 0.6 ? 'Too few men to spare for the boats.' : null,
-    },
-    {
-      id: 'rest', label: 'Rest day',
-      hint: 'A make-and-mend day: no training this week, and the men get some rest.',
-      locked: null,
-    },
-  ];
-  if (c.orders === 'cruise' && !c.tutorial) {
-    out.push({
-      id: 'home', label: 'Return home',
-      hint: 'End the cruise early and sail for port. Prize money is paid when you arrive.',
-      locked: c.week < half ? `Not before week ${half} of the cruise.` : null,
-    });
-  }
-  return out;
 }
 
 function currentNote(s) {

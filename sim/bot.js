@@ -6,16 +6,25 @@
 
 import { newGame, choose, view } from '../src/engine/game.js';
 
+/** The first unlocked action carrying one of these tags, in order (rest days excluded). */
+function actionBy(v, tags) {
+  for (const tag of tags) {
+    const a = v.sea.actions.find((x) => !x.locked && x.id !== 'rest' && x.id !== 'home' && (x.tags || []).includes(tag));
+    if (a) return a.id;
+  }
+  return null;
+}
+
 export const POLICIES = {
   fair: {
-    sea: { course: 'patrol', plan: (v) => (v.crew.drivers.workload < 35 ? 'rest' : null) },
+    sea: { course: 'patrol', plan: (v) => (v.crew.drivers.workload < 35 ? 'rest' : actionBy(v, ['obey', 'fair'])) },
     setup: { officers: 'shipmates', men: 'mixed', command: 'firm' },
     orders: { drill: 'mixed', rations: 'full', work: 'normal', discipline: 'firm' },
     prefer: ['fair', 'care', 'obey', 'bold', 'drill', 'cautious', 'cheap'],
     port: { press: 0.8, volunteers: true, quota: true, powder: 1, liberty: true, recommend: true },
   },
   harsh: {
-    sea: { course: 'inshore', plan: () => 'raid' },
+    sea: { course: 'inshore', plan: (v) => actionBy(v, ['bold']) },
     setup: { officers: 'admiralty', men: 'press', command: 'taut' },
     orders: { drill: 'mixed', rations: 'full', work: 'hard', discipline: 'harsh' },
     prefer: ['harsh', 'obey', 'bold', 'drill', 'cheap', 'cautious'],
@@ -23,21 +32,21 @@ export const POLICIES = {
   },
   // Harsh standing orders, fair answers to every case: isolates the punishment order itself.
   strict: {
-    sea: { course: 'patrol', plan: () => null },
+    sea: { course: 'patrol', plan: (v) => actionBy(v, ['obey']) },
     setup: { officers: 'shipmates', men: 'mixed', command: 'taut' },
     orders: { drill: 'mixed', rations: 'full', work: 'normal', discipline: 'harsh' },
     prefer: ['fair', 'care', 'obey', 'bold', 'drill', 'cautious', 'cheap'],
     port: { press: 0.8, volunteers: true, quota: true, powder: 1, liberty: true, recommend: true },
   },
   lenient: {
-    sea: { course: 'patrol', plan: (v) => (v.crew.drivers.workload < 45 ? 'rest' : null) },
+    sea: { course: 'patrol', plan: (v) => (v.crew.drivers.workload < 45 ? 'rest' : actionBy(v, ['care'])) },
     setup: { officers: 'connected', men: 'seamen', command: 'easy' },
     orders: { drill: 'seamanship', rations: 'full', work: 'light', discipline: 'lenient' },
     prefer: ['lenient', 'care', 'fair', 'bold', 'obey', 'cheap', 'cautious'],
     port: { press: 0.6, volunteers: true, quota: true, powder: 0, liberty: true, recommend: true },
   },
   drilled: {
-    sea: { course: 'offshore', plan: () => null },
+    sea: { course: 'offshore', plan: (v) => actionBy(v, ['obey', 'bold']) },
     setup: { officers: 'ranks', men: 'mixed', command: 'firm' },
     orders: { drill: 'gunnery', rations: 'full', work: 'normal', discipline: 'firm' },
     prefer: ['drill', 'fair', 'bold', 'care', 'obey', 'cautious', 'cheap'],

@@ -6,6 +6,7 @@
 import { CONFIG } from '../data/config.data.js';
 import { clamp, checkChance, band, effective, morale } from './derive.js';
 import { money, log, officer } from './state.js';
+import { addPrize } from '../content/missions.js';
 
 export const SEVERITY = ['A warning', 'Rum ration stopped', 'Extra work and a night in irons', 'Flogged: 12 lashes', 'Flogged: 36 lashes'];
 
@@ -99,12 +100,22 @@ export function apply(s, ops, rng, ctx = {}) {
       case 'flag': s.flags[a] = b === undefined ? true : b; break;
       case 'log': log(s, a, b || 'note'); break;
       case 'depart': s.record.departures++; s.commission.departed = true; break;
-      case 'battle': out.battle = a; break;
+      case 'prize': addPrize(s, a, b); break;
+      case 'later': (s.later ||= []).push({ id: a, due: (s.flags.commissionsDone || 0) + b }); break;
+      case 'follower': s.followers.push(a); s.record.promoted++; break;
+      case 'officer-leaves': {
+        const o = officer(s, a);
+        if (o) { o.status = b; log(s, `${o.name} leaves the ship (${b}).`, 'career'); }
+        break;
+      }
+      case 'battle': out.battle = a; out.support = b || null; break;
       case 'chase': out.chase = a; break;
       case 'mutiny': out.mutiny = a; break;
       case 'stage': s.crew.grievance = clamp(s.crew.grievance + a * 20); break;
       case 'weeks': s.commission.weeks = Math.max(s.commission.week + 1, s.commission.weeks + a); break;
-      case 'convoyLoss': s.commission.convoyLost++; s.record.convoyLost++; break;
+      case 'convoyLoss':
+        if (s.commission.guard) { log(s, 'The convoy was gathered close: the privateer found no straggler.', 'sighting'); break; }
+        s.commission.convoyLost++; s.record.convoyLost++; break;
       default: throw new Error(`unknown effect op ${k}`);
     }
   }
@@ -182,13 +193,17 @@ export function describe(s, ops) {
         break;
       }
       case 'depart': parts.push('Breaks your orders'); break;
+      case 'prize': parts.push(`A prize worth about £${Math.round(b / 100) * 100}`); break;
+      case 'later': parts.push('Consequences later'); break;
+      case 'follower': parts.push(`${a} becomes one of your followers`); break;
+      case 'officer-leaves': { const o = officer(s, a); if (o) parts.push(`${o.name.replace(/^Mr /, '')} leaves the ship`); break; }
       case 'flag': if (a === 'dispatch') parts.push('Named in the admiral\'s dispatch'); break;
-      case 'battle': parts.push('A fight'); break;
+      case 'battle': parts.push(b === 'squadron' ? 'A fight, alongside the squadron' : b === 'friend' ? 'A fight, with his sloop alongside' : 'A fight'); break;
       case 'chase': parts.push('Chase'); break;
       case 'mutiny': parts.push('Mutiny'); break;
       case 'stage': parts.push(a > 0 ? 'Unrest grows' : 'Unrest eases'); break;
       case 'weeks': parts.push(`${a > 0 ? '+' : ''}${a} week${Math.abs(a) === 1 ? '' : 's'} on this commission`); break;
-      case 'convoyLoss': parts.push('A merchantman lost'); break;
+      case 'convoyLoss': parts.push(s.commission?.guard ? 'No ship lost: the convoy is gathered close' : 'A merchant ship lost'); break;
       default: break;
     }
   }
