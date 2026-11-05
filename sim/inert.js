@@ -7,11 +7,11 @@
 // Usage: node sim/inert.js   (exits 1 if anything is inert)
 
 import { inertCheck } from './inert-check.js';
-import { play } from './bot.js';
+import { play, POLICIES } from './bot.js';
 import { SHIP_TRAITS } from '../src/data/ships.data.js';
 
 const run = (seed, cfg) => play(seed, {
-  policy: 'fair',
+  policy: { ...POLICIES.fair, port: { ...POLICIES.fair.port, ask: cfg.ask || [], decline: cfg.decline ? (v) => v.port.next && v.port.next.station === 'off Brest' : null } },
   background: cfg.background,
   setupChoices: { officers: cfg.officers, men: cfg.men, command: cfg.command },
   sea: cfg.sea ? { course: cfg.sea.course, plan: () => cfg.sea.plan } : undefined,
@@ -20,7 +20,7 @@ const run = (seed, cfg) => play(seed, {
 });
 // The career and the ship's condition, minus the trait's own name.
 const digest = (s) => JSON.stringify({ r: s.record, m: s.money, p: s.player, d: s.day, c: s.crew, h: s.ship && [s.ship.hull, s.ship.rigging, s.ship.stores] });
-const base = { drill: 'mixed', rations: 'full', work: 'normal', discipline: 'firm', background: 'naval', trait: null, officers: 'shipmates', men: 'mixed', command: 'firm', sea: null };
+const base = { drill: 'mixed', rations: 'full', work: 'normal', discipline: 'firm', background: 'naval', trait: null, officers: 'shipmates', men: 'mixed', command: 'firm', sea: null, ask: null, decline: false };
 const knob = (name, values) => Object.fromEntries(Object.keys(base).map((k) => [k, { default: base[k], try: k === name ? values : [] }]));
 
 const orders = inertCheck({
@@ -35,6 +35,8 @@ const orders = inertCheck({
     officers: { default: 'shipmates', try: ['ranks', 'connected', 'admiralty'] },
     men: { default: 'mixed', try: ['seamen', 'press', 'landsmen'] },
     command: { default: 'firm', try: ['taut', 'easy'] },
+    ask: { default: null, try: [['caribbean'], ['eastindies'], ['baltic']] },
+    decline: { default: false, try: [true] },
     sea: { default: null, try: [{ course: 'inshore', plan: null }, { course: 'offshore', plan: null }, { course: 'patrol', plan: 'rest' }, { course: 'inshore', plan: 'raid' }, { course: 'patrol', plan: 'home' }, { course: 'patrol', plan: 'neutrals' }, { course: 'patrol', plan: 'look' }, { course: 'patrol', plan: 'fishing' }, { course: 'patrol', plan: 'gather' }, { course: 'patrol', plan: 'scout' }, { course: 'patrol', plan: 'crack' }] },
   },
 });

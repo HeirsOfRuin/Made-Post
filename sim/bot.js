@@ -50,7 +50,7 @@ export const POLICIES = {
     setup: { officers: 'ranks', men: 'mixed', command: 'firm' },
     orders: { drill: 'gunnery', rations: 'full', work: 'normal', discipline: 'firm' },
     prefer: ['drill', 'fair', 'bold', 'care', 'obey', 'cautious', 'cheap'],
-    port: { press: 0.8, volunteers: true, quota: true, powder: 3, liberty: true, recommend: true },
+    port: { press: 0.8, volunteers: true, quota: true, powder: 3, liberty: true, recommend: true, ask: ['eastindies', 'caribbean', 'baltic'] },
   },
   lazy: {
     sea: { course: 'patrol', plan: () => null },
@@ -122,6 +122,8 @@ export function play(seed, opts = {}) {
 function portMove(v, port, s) {
   const can = (id) => v.port.actions.find((a) => a.id === id && !a.locked);
   const manned = v.crew.total / v.crew.complement;
+  for (const key of port.ask || []) if (can(`ask:${key}`)) return `ask:${key}`;
+  if (port.decline && can('decline') && port.decline(v)) return 'decline';
   if (port.volunteers && can('volunteers')) return 'volunteers';
   if (manned < port.press && can('press')) return 'press';
   if (port.quota && manned < 0.95 && can('quota')) return 'quota';

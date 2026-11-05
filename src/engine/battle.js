@@ -5,6 +5,7 @@
 import { CONFIG } from '../data/config.data.js';
 import { ENEMIES, SHIP_CLASSES } from '../data/ships.data.js';
 import { ORDER_TYPES, COURSES } from '../data/orders.data.js';
+import { DISTANT } from '../data/stations.data.js';
 import { clamp, effective, morale, checkChance, band, crewTotal, shipSpeed, captainShare } from './derive.js';
 import { log, officer } from './state.js';
 
@@ -29,7 +30,7 @@ export function startBattle(s, kind, rng, support = null) {
     foe: {
       name: e.name, flag: e.flag, broadside: e.broadside, tons: e.tons, crewStart: e.crew, crewNow: e.crew,
       gunnery: clamp(e.gunnery + jitter()), seamanship: clamp(e.seamanship + jitter()), morale: clamp(e.morale + jitter()),
-      hull: 100, rigging: 100, speed: e.speed, marines: 0, discipline: 60, aim: e.aim || 'hull',
+      hull: 100, rigging: 100, speed: e.speed, marines: 0, discipline: 60, aim: e.aim || 'hull', evasive: e.evasive || 1,
     },
     lines: [],
     result: e.fights ? null : 'won',
@@ -47,7 +48,15 @@ export function startBattle(s, kind, rng, support = null) {
     f.morale = clamp(f.morale - (support === 'squadron' ? 20 : 10));
     s.battle.lines.push(support === 'squadron' ? 'She is already under fire from the squadron when you close.' : 'His sloop has been fighting her for an hour; she is hurt.');
   }
-  s.battle.foe.value = Math.round(rng.range(e.prize[0], e.prize[1]) * (kind === 'merchant' ? (COURSES[s.commission?.course]?.prizeValue ?? 1) : 1));
+  const far = s.commission?.distant ? DISTANT[s.commission.distant] : null;
+  s.battle.foe.value = Math.round(rng.range(e.prize[0], e.prize[1]) * (kind === 'merchant' ? (COURSES[s.commission?.course]?.prizeValue ?? 1) : 1) * (far ? far.prizeMult : 1));
+  // The weather for the fight. Gunboats only come out in a calm; distant
+  // stations and the North Atlantic have their own weather.
+  const calmP = far ? far.calm : B().weather.calm;
+  const heavyP = s.commission?.station === 'northatlantic' ? 0.35 : B().weather.heavy;
+  const w = e.calmOnly ? 'calm' : rng.weighted([{ k: 'calm', weight: calmP }, { k: 'heavy', weight: heavyP }, { k: 'breeze', weight: Math.max(0.1, 1 - calmP - heavyP) }]).k;
+  s.battle.weather = w;
+  s.battle.lines.push({ calm: 'Light airs: the sea is flat and the ships barely have steerage way. Whoever wants the range can keep it; no one can close fast.', heavy: 'A heavy sea running: the ships roll their lee gunports under, aiming is guesswork, and no one can board.', breeze: 'A fresh breeze, a fighting wind.' }[w]);
   // The day's fortune: a lucky shot, a sprung spar, the wind backing. Drawn once per fight.
   s.battle.own.fortune = rng.float(1 - B().fortune, 1 + B().fortune);
   s.battle.foe.fortune = rng.float(1 - B().fortune, 1 + B().fortune);
@@ -66,6 +75,14 @@ export function accuracy(side) {
   return b.accuracyFloor + (1 - b.accuracyFloor) * Math.pow(side.gunnery / 100, b.accuracyExp);
 }
 
+/** Heavy seas spoil everyone's aim, a small ship's worst. Set per fight. */
+let currentWeather = 'breeze';
+function weatherAim(side, range) {
+  if (currentWeather === 'calm' && range === 'long') return B().calmLongAim; // a flat sea: a steady platform
+  if (currentWeather !== 'heavy') return 1;
+  return side.tons < 500 ? 0.6 : 0.8;
+}
+
 export function rateOfFire(side) {
   return B().rateBase + B().rateSkill * side.gunnery / 100;
 }
@@ -75,7 +92,7 @@ export function exchange(att, def, mult, rng, range = 'close') {
   const b = B();
   const mf = b.moraleBase + 0.6 * (att.morale / 100);
   const man = clamp(att.crewNow / att.crewStart, 0.2, 1);
-  const landed = att.broadside * accuracy(att) * rateOfFire(att) * mf * man * mult * (att.fortune || 1) * rng.float(0.8, 1.2);
+  const landed = att.broadside * accuracy(att) * rateOfFire(att) * mf * man * mult * (att.fortune || 1) * (def.evasive || 1) * weatherAim(att, range) * rng.float(0.8, 1.2);
   const aim = b.aim[att.aim || 'hull'];
   const raw = landed * b.hullPerDamage / (def.tons / 100);
   const hull = Math.min(def.hull, raw * aim.hull);
@@ -107,7 +124,7 @@ function volley(s, rng, ownMult, foeMult, range, label) {
     bt.lines.push('A musket ball from her tops strikes you down on your own quarterdeck.');
   }
   // At close range a ship with many more men tries to board you, once.
-  if (range === 'close' && foeMult && s.player.alive && !bt.foeBoarded && !struck(bt.foe) && bt.foe.morale >= B().boardSpirit && bt.foe.crewNow > bt.own.crewNow * B().boardIfOutnumber) {
+  if (range === 'close' && foeMult && s.player.alive && !bt.foeBoarded && bt.weather !== 'heavy' && bt.weather !== 'calm' && !struck(bt.foe) && bt.foe.morale >= B().boardSpirit && bt.foe.crewNow > bt.own.crewNow * B().boardIfOutnumber) {
     bt.foeBoarded = true;
     enemyBoards(s, rng);
   }
@@ -147,7 +164,8 @@ function checkStrike(s) {
 /** Keeping the range open against an enemy who wants to close. */
 function rangeChance(bt) {
   if (crippled(bt.own)) return 0.05;
-  return checkChance(bt.own.seamanship + (bt.own.speed - bt.foe.speed) * 1.5 + (bt.gauge === 'own' ? 15 : 0) + (crippled(bt.foe) ? 30 : 0), bt.foe.seamanship);
+  if (bt.weather === 'calm' && bt.kind === 'gunboats') return 0.05; // they row where they like
+  return checkChance((bt.weather === 'calm' ? 25 : 0) + bt.own.seamanship + (bt.own.speed - bt.foe.speed) * 1.5 + (bt.gauge === 'own' ? 15 : 0) + (crippled(bt.foe) ? 30 : 0), bt.foe.seamanship);
 }
 
 function escapeChance(bt) {
@@ -159,12 +177,12 @@ function gaugeChance(bt) {
 }
 function rakeChance(bt) {
   const g = bt.gauge === 'own' ? 15 : bt.gauge === 'foe' ? -15 : 0;
-  return checkChance(bt.own.seamanship + g + (crippled(bt.foe) ? 25 : 0) - (crippled(bt.own) ? 25 : 0), bt.foe.seamanship + 5);
+  return checkChance(bt.own.seamanship + g + (crippled(bt.foe) ? 25 : 0) - (crippled(bt.own) ? 25 : 0) - (bt.weather === 'calm' ? 20 : 0), bt.foe.seamanship + 5);
 }
 function boardChance(bt) {
   const own = bt.own.crewNow * (bt.own.morale / 100) * (1 + bt.own.marines / Math.max(1, bt.own.crewStart)) * (0.6 + bt.own.discipline / 200);
   const foe = bt.foe.crewNow * (bt.foe.morale / 100);
-  return clamp(0.5 + (own / Math.max(1, foe) - 1) * 0.6, 0.05, 0.95);
+  return clamp((0.5 + (own / Math.max(1, foe) - 1) * 0.6) * (bt.weather === 'heavy' || bt.weather === 'calm' ? 0.3 : 1), 0.05, 0.95);
 }
 
 /** Options for the current phase, each with its odds band derived from the same chance functions. */
@@ -206,6 +224,7 @@ export function prizeCrewSize(bt) {
 /** Resolve one battle decision. */
 export function battleChoose(s, id, rng) {
   const bt = s.battle;
+  currentWeather = bt.weather || 'breeze';
   const b = B();
   switch (bt.phase) {
     case 'approach': {

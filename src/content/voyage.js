@@ -132,9 +132,90 @@ export const SET_PIECES = {
   a4c1: [{ id: 'army-colonel', weeks: [2, 6] }],
   a4c2: [{ id: 'baltimore-clipper', weeks: [3, 9] }],
   a4c3: [{ id: 'hundred-days', weeks: [5, 7] }],
+  // Distant stations, keyed by station rather than voyage.
+  caribbean: [{ id: 'yellow-jack', weeks: [3, 6] }, { id: 'sugar-prize', weeks: [7, 10] }],
+  eastindies: [{ id: 'cape', weeks: [2, 3] }, { id: 'surcouf', weeks: [7, 12] }],
+  baltic: [{ id: 'gunboat-calm', weeks: [3, 7] }],
+};
+
+// ---- boat raids: a short scene in two steps (content/missions.js queues it) ------
+
+const raidPrize = (ctx) => ['prize', 'French ship, cut out of harbour', ctx.value || 3000];
+
+export const RAID_EVENTS = {
+  'raid-approach': {
+    kind: 'raid', title: 'Boats away',
+    text: () => 'The boats are in the water, oars muffled with rags, cutlasses and pistols in the bottom boards. Inside the harbour mouth: a French ship at anchor under a battery, her riding light burning. How do you go in?',
+    options: (s, ctx) => [
+      {
+        id: 'night', label: 'Wait for the middle watch and pull in silently', tags: ['fair', 'cautious', 'drill'],
+        check: { skill: 'seamanship', vs: 50, label: 'Getting in unseen', pass: [['next', 'raid-strike', { ...ctx, surprise: true }]], fail: [['next', 'raid-strike', { ...ctx, surprise: false }]] },
+      },
+      { id: 'dusk', label: 'Go in at dusk with every boat, fast', tags: ['bold'], ops: [['next', 'raid-strike', { ...ctx, surprise: false, strong: true }]] },
+      { id: 'off', label: 'Call it off: the battery is awake', tags: ['cheap', 'lenient'], ops: [['driver', 'trust', -2]] },
+    ],
+  },
+  'raid-strike': {
+    kind: 'raid', title: 'Alongside',
+    text: (s, ctx) => (ctx.surprise
+      ? 'You are alongside before her watch sees you. A sleepy sentry, a lantern, a few men on deck. Now.'
+      : 'A musket flashes from her deck, then the battery wakes and the water round the boats jumps with grape. She is ready for you.'),
+    options: (s, ctx) => {
+      const hard = ctx.surprise ? 0 : 16;
+      const help = ctx.strong ? 6 : 0;
+      return [
+        { id: 'board', label: 'Board her and fight for the deck', tags: ['bold', 'obey'], check: { skill: 'morale', vs: 44 + hard - help, label: 'Your boarders', pass: [raidPrize(ctx), ['men', 'ordinary', -4, 'killed'], ['rep', 'service', 2], ['driver', 'prospects', 6]], fail: [['men', 'ordinary', -8, 'killed'], ['driver', 'trust', -5]] } },
+        { id: 'cut', label: 'Cut her cable and tow her out', tags: ['fair', 'drill'], check: { skill: 'seamanship', vs: 46 + hard, label: 'Seamanship, under fire', pass: [raidPrize(ctx), ['rep', 'service', 2]], fail: [['men', 'ordinary', -3, 'killed']] } },
+        { id: 'burn', label: 'Set her on fire and pull away', tags: ['cautious', 'care'], check: { skill: 'discipline', vs: 36 + hard, label: 'Your men\'s steadiness', pass: [['rep', 'service', 2], ['rep', 'public', 2], ['log', 'She burned to the waterline.']], fail: [['men', 'ordinary', -4, 'killed']] } },
+      ];
+    },
+  },
 };
 
 export const SET_PIECE_EVENTS = {
+  'yellow-jack': {
+    kind: 'setpiece', title: 'Yellow Jack',
+    text: (s) => `The yellow flag is up in half the ships in Port Royal. ${s.flags.seasoned ? 'Your people have been out here before, and the seasoned men stand it better.' : 'Your people are new to the islands, and the fever takes the new men first.'} The surgeon wants the ship out of harbour, the sick ashore at the hospital, and the men off the rum.`,
+    options: (s) => [
+      { id: 'sea', label: 'Get out to sea at once, sick and all', tags: ['care', 'fair', 'bold'], ops: [['health', 6], ['driver', 'trust', 3]] },
+      { id: 'hospital', label: 'Land the sick at the hospital and wait for them', tags: ['care', 'cautious'], ops: [['weeks', 1], ['health', 10], ['men', 'ordinary', -4, 'died']] },
+      { id: 'carry', label: 'Carry on with your orders', tags: ['obey', 'harsh', 'cheap'], ops: [['health', -8], ['men', 'ordinary', -6, 'died']] },
+    ],
+  },
+  'sugar-prize': {
+    kind: 'setpiece', title: 'A sugar ship',
+    text: () => 'A big French West Indiaman, deep with sugar and coffee from Saint-Domingue, slipping out of Cap-Français under the guns of a corvette. Taken, she is worth more than you will earn in pay in ten years.',
+    options: () => [
+      { id: 'take', label: 'Go in after her', tags: ['bold', 'initiative'], check: { skill: 'seamanship', vs: 55, label: 'Seamanship', pass: [['prize', 'French West Indiaman, sugar and coffee', 22000], ['driver', 'prospects', 12]], fail: [['hull', -14], ['men', 'ordinary', -6, 'killed']] } },
+      { id: 'wait', label: 'Wait offshore for her to come out', tags: ['cautious', 'fair', 'obey'], check: { skill: 'seamanship', vs: 45, label: 'Seamanship', pass: [['prize', 'French West Indiaman, sugar and coffee', 22000], ['driver', 'prospects', 10]], fail: [['driver', 'prospects', -6], ['log', 'She slipped past you in the night.']] } },
+    ],
+  },
+  cape: {
+    kind: 'setpiece', title: 'Round the Cape',
+    text: () => 'The Cape of Good Hope, and the great grey seas of the Southern Ocean rolling up under the counter. Weeks yet to Madras. The men have not seen fresh food since Madeira.',
+    options: () => [
+      { id: 'tablebay', label: 'Put into Table Bay for fresh beef and water, a week lost', tags: ['care', 'fair'], ops: [['weeks', 1], ['flag', 'freshFood'], ['health', 8], ['driver', 'provisions', 10]] },
+      { id: 'press', label: 'Press on: every week counts', tags: ['bold', 'obey', 'cheap'], ops: [['driver', 'provisions', -5]] },
+    ],
+  },
+  surcouf: {
+    kind: 'setpiece', title: 'The Revenant',
+    text: (s) => (s.day >= 5150 && s.day <= 5800
+      ? 'The privateer Revenant, Robert Surcouf\'s ship, the most famous raider in the Indian Ocean: fast, heavily manned, and loaded with prizes. She is to leeward of you, and she has seen you.'
+      : 'A big French privateer out of Mauritius, fast and heavily manned, with two captured country ships in company. She is to leeward of you, and she has seen you.'),
+    options: () => [
+      { id: 'engage', label: 'Go for her', tags: ['bold', 'obey', 'fair'], ops: [['battle', 'privateer'], ['flag', 'metSurcouf']] },
+      { id: 'leave', label: 'She is faster than you: let her go', tags: ['cautious', 'cheap'], ops: [['rep', 'public', -2]] },
+    ],
+  },
+  'gunboat-calm': {
+    kind: 'setpiece', title: 'A flat calm in the Belt',
+    text: () => 'A flat calm in the Great Belt, the convoy scattered and helpless, and out from behind the islands come the Danish gunboats, twenty of them, rowing fast, each with a long gun in the bow. In a calm they choose the range, and you cannot.',
+    options: () => [
+      { id: 'fight', label: 'Engage them', tags: ['bold', 'obey', 'fair'], ops: [['battle', 'gunboats']] },
+      { id: 'boats', label: 'Send your boats to tow the merchantmen into a huddle', tags: ['care', 'cautious'], check: { skill: 'discipline', vs: 50, label: 'Your boats\' crews', pass: [['rep', 'service', 3]], fail: [['convoyLoss'], ['convoyLoss']] } },
+    ],
+  },
   pellew: {
     kind: 'setpiece', title: 'Sir Edward Pellew',
     text: () => 'Topsails to windward: Sir Edward Pellew\'s frigate squadron, the most famous in the navy, chasing a French frigate toward the Penmarks. His flagship Indefatigable makes your number: join the chase.',

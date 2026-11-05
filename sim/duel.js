@@ -17,7 +17,8 @@ export const PLANS = {
 };
 
 /** One fight: our class and trained skill against an enemy type. */
-export function duel(seed, { cls, gunnery, seamanship, morale = 60, enemy, plan = PLANS.steady }) {
+export function duel(seed, spec) {
+  const { cls, gunnery, seamanship, morale = 60, enemy, plan = PLANS.steady } = spec;
   const s = newGame({ seed });
   const rng = makeRng(seed * 31 + 7);
   assignShip(s, cls, rng);
@@ -30,6 +31,7 @@ export function duel(seed, { cls, gunnery, seamanship, morale = 60, enemy, plan 
   s.crew.discipline = 60;
   s.commission = { orders: 'cruise', departed: false, week: 0, weeks: 10 };
   startBattle(s, enemy, rng);
+  if (spec.weather) s.battle.weather = spec.weather;
   const order = { approach: plan.approach, engage: plan.engage, decide: plan.decide, aftermath: plan.after };
   let guard = 0;
   while (s.battle.phase !== 'done' && guard++ < 10) battleChoose(s, order[s.battle.phase], rng);
@@ -72,6 +74,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     ['38 v American 38', { cls: 'frigate38', enemy: 'american38', gunnery: 55, seamanship: 55 }],
     ['drilled 38 v Spanish (sailing edge)', { cls: 'frigate38', enemy: 'spanish', gunnery: 70, seamanship: 75 }],
     ['sloop v privateer', { cls: 'sloop', enemy: 'privateer', gunnery: 50, seamanship: 55 }],
+    ['32 v French in light airs', { cls: 'frigate32', enemy: 'french', gunnery: 60, seamanship: 60, weather: 'calm' }],
+    ['32 v French in a heavy sea', { cls: 'frigate32', enemy: 'french', gunnery: 60, seamanship: 60, weather: 'heavy' }],
     ['drilled 32 v French (outmanned, better gunners)', { cls: 'frigate32', enemy: 'french', gunnery: 85, seamanship: 70 }],
   ];
   for (const [name, spec] of situations) {

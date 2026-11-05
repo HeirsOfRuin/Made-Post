@@ -117,6 +117,7 @@ export function apply(s, ops, rng, ctx = {}) {
         break;
       }
       case 'battle': out.battle = a; out.support = b || null; break;
+      case 'next': out.next = { id: a, ctx: b || {} }; break;
       case 'chase': out.chase = a; break;
       case 'mutiny': out.mutiny = a; break;
       case 'stage': s.crew.grievance = clamp(s.crew.grievance + a * 20); break;
@@ -206,6 +207,7 @@ export function describe(s, ops) {
       case 'follower': parts.push(`${a} becomes one of your followers`); break;
       case 'officer-leaves': { const o = officer(s, a); if (o) parts.push(`${o.name.replace(/^Mr /, '')} leaves the ship`); break; }
       case 'flag': if (a === 'dispatch') parts.push('Named in the admiral\'s dispatch'); break;
+      case 'next': break;
       case 'battle': parts.push(b === 'squadron' ? 'A fight, alongside the squadron' : b === 'friend' ? 'A fight, with his sloop alongside' : 'A fight'); break;
       case 'chase': parts.push('Chase'); break;
       case 'mutiny': parts.push('Mutiny'); break;

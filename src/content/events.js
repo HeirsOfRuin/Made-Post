@@ -12,7 +12,7 @@ import { ENEMIES, SHIP_CLASSES, SHIP_TRAITS } from '../data/ships.data.js';
 import { SUPERIORS } from '../data/acts.data.js';
 import { FAULTS } from '../data/cast.data.js';
 import { SEVERITY, OFFENCES } from '../engine/effects.js';
-import { ORDER_EVENTS, SET_PIECE_EVENTS, ARCS } from './voyage.js';
+import { ORDER_EVENTS, SET_PIECE_EVENTS, ARCS, RAID_EVENTS } from './voyage.js';
 import { morale, lemonJuice, ANARCHY, crewTotal } from '../engine/derive.js';
 
 /** Our weight of metal and men against hers, before skill (the same ratio battle.js reports). */
@@ -394,7 +394,7 @@ export const EVENTS = {
   },
 };
 
-Object.assign(EVENTS, ORDER_EVENTS, SET_PIECE_EVENTS, ARCS);
+Object.assign(EVENTS, ORDER_EVENTS, SET_PIECE_EVENTS, ARCS, RAID_EVENTS);
 
 export const SYSTEM_EVENTS = Object.entries(EVENTS).filter(([, e]) => e.kind === 'system').map(([id]) => id);
 

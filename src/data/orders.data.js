@@ -43,6 +43,9 @@ export const STATIONS = {
   lisbon: 'the Lisbon run',
   northatlantic: 'the North Atlantic',
   northsea: 'the North Sea',
+  jamaica: 'the Caribbean',
+  eastindies: 'the East Indies',
+  baltic: 'the Baltic',
 };
 
 // Where to sail, chosen week by week on a cruise or a blockade (convoys and

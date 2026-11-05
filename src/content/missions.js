@@ -9,6 +9,7 @@
 import { CONFIG } from '../data/config.data.js';
 import { ENEMIES } from '../data/ships.data.js';
 import { ORDER_TYPES, COURSES } from '../data/orders.data.js';
+import { DISTANT } from '../data/stations.data.js';
 import { clamp, checkChance, effective, morale, manning, captainShare } from '../engine/derive.js';
 import { money, log } from '../engine/state.js';
 import { removeMen } from '../engine/battle.js';
@@ -70,26 +71,13 @@ export const ACTIONS = {
     hint: 'Send the boats into an enemy harbour at night to cut out a ship at anchor. A prize if it works; men lost if it does not.',
     lock: (s) => inshoreOnly(s) || (manning(s) < 0.6 ? 'Too few men to spare for the boats.' : null),
     run: (s, rng, notes) => {
+      // A short scene (content/voyage.js RAID_EVENTS): how you go in, then what you do there.
       const c = s.commission;
       const course = COURSES[c.course] || COURSES.patrol;
-      const p = checkChance((effective(s).seamanship + morale(s)) / 2, 55);
-      if (rng.chance(p)) {
-        const value = Math.round(rng.range(ENEMIES.merchant.prize[0], ENEMIES.merchant.prize[1]) * course.prizeValue * 1.2);
-        addPrize(s, 'French coaster, cut out of harbour', value);
-        removeMen(s, 4);
-        s.crew.drivers.prospects = clamp(s.crew.drivers.prospects + 8);
-        s.crew.drivers.trust = clamp(s.crew.drivers.trust + 4);
-        s.player.rep.service = clamp(s.player.rep.service + 2);
-        notes.push(`The boats cut a French coaster out of the harbour under the batteries' noses. Worth about £${Math.round(value / 100) * 100}.`);
-        log(s, 'Boat raid: a coaster cut out of harbour.', 'battle');
-      } else {
-        const lost = rng.range(3, 9);
-        removeMen(s, lost);
-        s.record.killed += lost;
-        s.crew.drivers.trust = clamp(s.crew.drivers.trust - 5);
-        notes.push(`The raid was seen. The boats came back under fire; ${lost} men did not.`);
-        log(s, `Boat raid beaten off: ${lost} men lost.`, 'battle');
-      }
+      const far = c.distant ? DISTANT[c.distant] : null;
+      const value = Math.round(rng.range(ENEMIES.merchant.prize[0], ENEMIES.merchant.prize[1]) * course.prizeValue * 1.2 * (far ? far.prizeMult : 1));
+      s.queue.unshift({ id: 'raid-approach', ctx: { value } });
+      notes.push('The boats were made ready for a raid.');
     },
   },
   neutrals: {

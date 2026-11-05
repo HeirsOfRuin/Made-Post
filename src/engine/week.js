@@ -22,6 +22,7 @@ import { COURSES } from '../data/orders.data.js';
 import { SUPERIORS } from '../data/acts.data.js';
 import { checkChance, effective } from './derive.js';
 import { runAction } from '../content/missions.js';
+import { DISTANT } from '../data/stations.data.js';
 import { ARCS, ARC_IDS } from '../content/voyage.js';
 import { streamFor } from './rng.js';
 import { clamp, morale, baseSkill, crewTotal, manning, pressedShare, lemonJuice, mutinyStage, ANARCHY } from './derive.js';
@@ -110,6 +111,17 @@ export function seaWeek(s) {
   const deaths = Math.min(sick, Math.round(sick * mortality * hr.float(0.5, 1.5) + (hr.chance((sick * mortality) % 1) ? 1 : 0)));
   if (deaths > 0) { removeMen(s, deaths); s.record.died += deaths; }
   s.crew.sick = sick;
+  // Distant stations: yellow fever in the islands (worse for a crew new to
+  // them), and the long passage out round the Cape.
+  const far = c.distant ? DISTANT[c.distant] : null;
+  if (far && far.fever) {
+    const seasoned = s.flags.seasoned ? 0.4 : 1;
+    s.crew.health = clamp(s.crew.health - far.fever * seasoned);
+    const doc = officer(s, 'surgeon');
+    const fever = Math.round(crewTotal(s) * far.fever * seasoned * 0.004 * (doc ? 1.4 - doc.competence / 100 : 1.5) * hr.float(0.4, 1.6));
+    if (fever > 0) { removeMen(s, fever); s.record.died += fever; notes.push(`${c.distant === 'caribbean' ? 'Yellow fever' : 'Fever'}: ${fever} m${fever === 1 ? 'an' : 'en'} died this week.`); }
+  }
+  if (far && far.passage && c.week < far.passage) notes.push('On passage round the Cape: weeks of empty ocean.');
 
   // 4 offences ------------------------------------------------------------------
   const pr = rng('offences');
@@ -276,6 +288,9 @@ export function pickEvent(s, ladderRose, rng) {
   if (c.week >= c.weeks) return null;
   const ot = ORDER_TYPES[c.orders];
   const course = COURSES[c.course] || COURSES.patrol;
+  // On the long passage out, nothing is sighted.
+  const far = c.distant ? DISTANT[c.distant] : null;
+  if (far && far.passage && c.week <= far.passage) return null;
   // News from neutrals, fishermen or ranging ahead raises the odds for one week.
   const intel = c.intel || 1;
   c.intel = 1;

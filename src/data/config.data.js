@@ -82,7 +82,10 @@ export const CONFIG = {
   creditLimit: -1500,           // how far the lenders will let you borrow for spending in port
   debtPatience: 3,              // returns to port in debt, running, before the creditors call it in
   debtRuin: -1800,              // past the lenders' limit, interest and half pay finish you
-  entertainCost: 150,           // dining the admiral and the port's notables
+  entertainCost: 150,
+  declineInterest: 6,           // declining a posting costs influence...
+  declineService: 4,            // ...and the Admiralty's good opinion
+  askInterest: 3,               // asking for a distant station spends influence, granted or not           // dining the admiral and the port's notables
   // Pressure: the better things are, the harder they are to keep.
   driverCeiling: 70,            // above this, gains shrink and the drift back is stronger
   seniorExpectation: 0.35,      // per year since made post: more is expected of a senior captain
@@ -136,7 +139,9 @@ export const CONFIG = {
     boardIfOutnumber: 1.3,      // an enemy this much stronger in men tries to board at close range
     boardSpirit: 50,            // ...if her crew's morale is at least this (Spanish crews seldom tried it)
     crippledRigging: 40,        // below this a ship cannot get away and is easy to rake
-    rakeMorale: 10,             // a successful rake shakes the enemy's nerve
+    rakeMorale: 10,
+    weather: { calm: 0.2, heavy: 0.2 },
+    calmLongAim: 1.5,           // long-range accuracy in a flat calm // chance of each at the start of a fight, home waters             // a successful rake shakes the enemy's nerve
     officerFallPerLoss: 0.5,    // chance per officer, per share of the crew lost, of falling
   },
 

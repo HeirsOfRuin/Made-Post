@@ -24,7 +24,7 @@ import { apply, stakeLine, optionChance } from './effects.js';
 import { seaWeek } from './week.js';
 import { startBattle, battleChoose, battleOptions, closeBattle } from './battle.js';
 import { portActions, portChoose } from './port.js';
-import { startCommission, endCommission, afterReport, interludeOptions, interludeChoose, interludeText, mutinyOutcome, courtMartial, finish, offeredClass, promotionScore, promotionThreshold } from './career.js';
+import { currentCommissionDef, startCommission, endCommission, afterReport, interludeOptions, interludeChoose, interludeText, mutinyOutcome, courtMartial, finish, offeredClass, promotionScore, promotionThreshold } from './career.js';
 import { score, obituary, rankTitle, ENDINGS } from './ending.js';
 import { setupChoose, setupView } from './setup.js';
 import { formatDay, monthYear } from './calendar.js';
@@ -170,6 +170,12 @@ function resolveOption(s, id) {
   const out = apply(s, ops, rng, p.ctx);
   s.pending = null;
   s.phase = 'sea';
+  if (out.next) {
+    // The scene goes straight on to its next step.
+    s.pending = out.next;
+    s.phase = 'decision';
+    return;
+  }
   if (out.mutiny === 'outbreak') {
     // The arrest failed: the ship rises.
     s.crew.grievance = Math.max(s.crew.grievance, 80);
@@ -235,12 +241,13 @@ export function view(s) {
   const v = {
     phase: s.phase,
     date: formatDay(s.day),
+    year: new Date(Date.UTC(1793, 1, 1) + s.day * 86400000).getUTCFullYear(),
     month: monthYear(s.day),
     act: act ? { id: act.id, title: act.title, years: act.years } : null,
     captain: { name: s.player.name, rank: rankTitle(s), postList: s.player.postList, money: s.money, interest: Math.round(s.player.interest), rep: roundAll(s.player.rep), alive: s.player.alive },
     patron: s.patron,
     ship: s.ship && {
-      name: s.ship.name, cls: SHIP_CLASSES[s.ship.cls].name, guns: SHIP_CLASSES[s.ship.cls].gunLabel,
+      name: s.ship.name, cls: SHIP_CLASSES[s.ship.cls].name, shape: s.ship.cls, guns: SHIP_CLASSES[s.ship.cls].gunLabel,
       trait: s.ship.trait ? SHIP_TRAITS[s.ship.trait] : null,
       hull: Math.round(s.ship.hull), rigging: Math.round(s.ship.rigging),
       stores: { food: Math.round(s.ship.stores.food * 10) / 10, water: Math.round(s.ship.stores.water * 10) / 10, powder: Math.round(s.ship.stores.powder) },
@@ -304,7 +311,8 @@ export function view(s) {
   if (s.phase === 'battle' && s.battle) {
     const b = s.battle;
     v.battle = {
-      phase: b.phase, foe: `${b.foe.flag} ${b.foe.name}`, lines: b.lines,
+      phase: b.phase, foe: `${b.foe.flag} ${b.foe.name}`, lines: b.lines, kind: b.kind, flag: b.foe.flag,
+      weather: { calm: 'Light airs', heavy: 'Heavy sea', breeze: 'Fresh breeze' }[b.weather || 'breeze'],
       own: sideView(b.own), enemy: sideView(b.foe), gauge: b.gauge,
       options: battleOptions(s).map(({ id, label, stake, tags }) => ({ id, label, stake, tags: tags || [] })),
     };
@@ -350,7 +358,7 @@ function voice(s, m) {
 }
 
 function sideView(x) {
-  return { hull: Math.round(x.hull), crew: x.crewNow, crewStart: x.crewStart, broadside: x.broadside, gunnery: Math.round(x.gunnery), seamanship: Math.round(x.seamanship) };
+  return { hull: Math.round(x.hull), rigging: Math.round(x.rigging), crew: x.crewNow, crewStart: x.crewStart, broadside: x.broadside, gunnery: Math.round(x.gunnery), seamanship: Math.round(x.seamanship) };
 }
 
 function roundAll(o) {
@@ -358,9 +366,9 @@ function roundAll(o) {
 }
 
 function nextCommissionNote(s) {
-  const def = ACTS[s.act]?.commissions[s.com];
+  const def = currentCommissionDef(s);
   if (!def) return null;
-  return { orders: ORDER_TYPES[def.orders].label, station: STATIONS[def.station], note: def.note, weeks: def.weeks, superior: SUPERIORS[def.superior].name };
+  return { orders: ORDER_TYPES[def.orders].label, station: STATIONS[def.station], note: def.note, weeks: def.weeks, superior: SUPERIORS[def.superior].name, distant: !!def.distant };
 }
 
 /** Where you may sail this week, or null when the orders fix the route. */
@@ -371,6 +379,5 @@ export function courseChoices(s) {
 }
 
 function currentNote(s) {
-  const def = ACTS[s.act]?.commissions.find((c) => c.id === s.commission?.id);
-  return def ? def.note : '';
+  return s.commission?.note || '';
 }

@@ -74,6 +74,14 @@ export const ENEMIES = {
   // An American 38 such as the Chesapeake: a match for a British 38, not the
   // 44s that beat Guerriere, Macedonian and Java. Here the Shannon's lesson can
   // be learned. VERIFY broadside (carronades) and crew.
+  // Danish gunboats: rowed, low in the water and hard to hit, each with one or
+  // two long guns. They came out in calms, when a sailing ship could not
+  // manoeuvre, and took many British merchantmen and some warships, 1807-1814.
+  gunboats: {
+    name: 'gunboat flotilla', flag: 'Danish', broadside: 200, tons: 450, crew: 320,
+    gunnery: 55, seamanship: 55, morale: 60, speed: 45, prize: [800, 2000], fights: true, aim: 'hull',
+    evasive: 0.6, calmOnly: true,
+  },
   american38: {
     name: 'frigate', flag: 'American', broadside: 330, tons: 1240, crew: 380,
     gunnery: 58, seamanship: 60, morale: 62, speed: 62, prize: [12000, 20000], fights: true, aim: 'rigging',

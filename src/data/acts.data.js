@@ -136,3 +136,7 @@ export const SUPERIORS = {
   warren:      { name: 'Admiral Warren', note: 'Short of ships in North America and glad of any captain who gets results.', initiative: 0.5, discipline: 0 },
   stvincent:   { name: 'Lord St Vincent', note: 'Commands the Channel Fleet. Strict, and hard on slack ships.', initiative: 0.2, discipline: 1 },
 };
+
+// Admirals on the distant stations (src/data/stations.data.js).
+import { DISTANT_SUPERIORS } from './stations.data.js';
+Object.assign(SUPERIORS, DISTANT_SUPERIORS);

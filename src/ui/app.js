@@ -10,6 +10,7 @@ import { newGame, choose, view } from '../engine/game.js';
 import { BACKGROUNDS } from '../data/cast.data.js';
 import { saveGame, loadGame, clearSave, exportCode, importCode, STORAGE_OK } from './save.js';
 import { registerSW } from './sw-register.js';
+import { shipSVG, enemyShape, nationOf } from './art.js';
 
 const app = document.getElementById('app');
 let state = null;
@@ -47,6 +48,7 @@ function renderTitle() {
   const saved = loadGame();
   app.innerHTML = `
   <main class="title">
+    <div class="art title-art">${shipSVG({ shape: 'frigate38', nation: 'british', year: 1805, title: 'A British frigate' })}</div>
     <h1>Made Post</h1>
     <p class="sub">The career of a Royal Navy captain, 1794 to 1815. Your ship, your crew, and every choice in between.</p>
     ${saved ? `<button class="primary big" data-act="continue">Continue: ${esc(saved.player.name)}, ${esc(view(saved).date)}</button>` : ''}
@@ -119,6 +121,7 @@ function ordersFold(v, open = false) {
 function conditionFold(v) {
   const s = v.ship;
   return fold('Ship', `Hull ${s.hull} · food ${Math.round(s.stores.food)} wks`, `
+    <div class="art">${shipSVG({ shape: s.shape, nation: 'british', year: v.year, hull: s.hull, rigging: s.rigging, title: `HMS ${s.name}` })}</div>
     <p><b>${esc(s.cls)}</b>, ${esc(s.guns)}.</p>
     ${s.trait ? `<p class="trait"><b>${esc(s.trait.label)}.</b> ${esc(s.trait.note)}</p>` : ''}
     ${bar('Hull', s.hull)}${bar('Masts and sails', s.rigging)}
@@ -128,12 +131,15 @@ function conditionFold(v) {
 
 function portPanel(v) {
   const n = v.port.next;
-  const open = v.port.actions.filter((a) => !a.locked && !a.primary);
-  const shut = v.port.actions.filter((a) => a.locked && !a.primary);
+  const open = v.port.actions.filter((a) => !a.locked && !a.primary && !a.posting);
+  const shut = v.port.actions.filter((a) => a.locked && !a.primary && !a.posting);
+  const posting = v.port.actions.filter((a) => a.posting);
   const sail = v.port.actions.find((a) => a.primary);
   return `<section class="panel"><h2>In port: ${esc(v.port.name)}</h2>
     ${v.port.mail.length ? fold('Letters', `${v.port.mail.length} waiting`, `<ul class="mail">${v.port.mail.map((m) => `<li><b>${esc(m.from)}.</b> ${esc(m.text)}</li>`).join('')}</ul>`, true) : ''}
     ${n ? `<div class="orders-card"><p class="step">Your next orders</p><b>${esc(n.orders)}, ${esc(n.station)}</b><p>${esc(n.note)}</p><small>About ${n.weeks} weeks, under ${esc(n.superior)}.</small></div>` : ''}
+    ${posting.length ? fold('Other postings', posting.some((a) => /granted/.test(a.label)) ? 'Request granted' : `${posting.length} choices`, `<div class="actions">${posting.map((a) => `
+      <div class="action"><button data-act="port" data-id="${a.id}" ${a.locked ? 'disabled' : ''}>${esc(a.label)}</button><p>${esc(a.note)}${a.locked ? ` <span class="lock">${esc(a.locked)}</span>` : ''}</p></div>`).join('')}</div>`) : ''}
     <p>${esc(v.status)}</p>
     <h3>Before you sail</h3>
     <div class="actions">${open.map((a) => `
@@ -152,7 +158,7 @@ function outcomeLine(v) {
 function seaPanel(v) {
   const c = v.commission;
   if (c.week === 0) {
-    return `<section class="panel"><p class="step">Your orders</p><h2>${esc(c.label)}: ${esc(c.station)}</h2>
+    return `<section class="panel"><div class="art">${shipSVG({ shape: v.ship.shape, nation: 'british', year: v.year, title: `HMS ${v.ship.name}` })}</div><p class="step">Your orders</p><h2>${esc(c.label)}: ${esc(c.station)}</h2>
       <p class="story">${esc(c.story)}</p>
       <p class="hint">${esc(c.brief)}</p>
       <p class="hint">Your admiral: ${esc(c.superior)}. ${esc(c.superiorNote)}</p>
@@ -194,7 +200,9 @@ function battlePanel(v) {
   const b = v.battle;
   const side = (name, x) => `<div class="side"><b>${esc(name)}</b>${bar('Hull', x.hull)}${bar('Men', (100 * x.crew) / x.crewStart, `${x.crew} of ${x.crewStart} still fighting`)}</div>`;
   const q = { approach: 'She is in sight. How do you go at her?', engage: 'Within range. How do you fight?', decide: 'Both ships are hurt. What now?', aftermath: 'She has surrendered. What do you do with her?', done: 'The fight is over.' }[b.phase];
-  return `<section class="panel battle"><p class="step">Action</p><h2>${esc(b.foe)}</h2>
+  const smoke = b.phase !== 'approach';
+  return `<section class="panel battle"><p class="step">Action · ${esc(b.weather)}</p><h2>${esc(b.foe)}</h2>
+    <div class="duel-art">${shipSVG({ shape: v.ship.shape, nation: 'british', year: v.year, hull: b.own.hull, rigging: b.own.rigging, smoke, title: 'Your ship' })}${shipSVG({ shape: enemyShape(b.kind), nation: nationOf(b.flag), year: v.year, hull: b.enemy.hull, rigging: b.enemy.rigging, facing: 'left', smoke, title: b.foe })}</div>
     <div class="sides">${side('Your ship', b.own)}${side(b.foe, b.enemy)}</div>
     ${b.lines.length ? `<ol class="battle-log">${b.lines.map((l) => `<li>${esc(l)}</li>`).join('')}</ol>` : ''}
     <h3>${esc(q)}</h3>

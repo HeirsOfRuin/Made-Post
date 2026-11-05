@@ -13,11 +13,35 @@ import { assignShip, openPort, log, money, makeOfficers } from './state.js';
 import { fireHistory } from './week.js';
 import { makeGoal, goalStatus } from '../content/missions.js';
 import { SET_PIECES } from '../content/voyage.js';
+import { DISTANT, WARS } from '../data/stations.data.js';
 import { makeMail, growPeople, RIVAL } from '../content/story.js';
 
 export function currentCommissionDef(s) {
   const act = ACTS[s.act];
-  return act && act.commissions[s.com];
+  const base = act && act.commissions[s.com];
+  if (!base || !s.alt || s.alt.slot !== base.id) return base;
+  return distantDef(base, s.alt.key);
+}
+
+/** A home commission swapped for a distant station: same dates, new everything else. */
+export function distantDef(base, key) {
+  const d = DISTANT[key];
+  const day = dayOf(base.start);
+  const sup = d.superiors.filter(([from]) => dayOf(from) <= day).pop()[1];
+  return {
+    ...base, id: `${base.id}:${key}`, distant: key, orders: d.orders, station: d.station, weeks: d.weeks,
+    superior: sup, note: d.note, enemies: atWar(d.enemies, day), finale: null,
+  };
+}
+
+/** Only nations at war with Britain on that day. */
+export function atWar(enemies, day) {
+  const out = {};
+  for (const [k, w] of Object.entries(enemies)) {
+    const wars = WARS[k];
+    if (!wars || wars.some(([a, b]) => day >= dayOf(a) && day <= dayOf(b))) out[k] = w;
+  }
+  return out;
 }
 
 /** Which class the Admiralty offers, with the reason. */
@@ -32,13 +56,15 @@ export function offeredClass(s) {
 /** Called from port when the captain puts to sea. */
 export function startCommission(s) {
   const def = currentCommissionDef(s);
+  s.alt = null;
   s.commission = {
     id: def.id, orders: def.orders, station: def.station, superior: def.superior,
-    weeks: def.weeks, week: 0, enemies: { ...def.enemies }, finale: def.finale || null,
+    weeks: def.weeks, week: 0, enemies: atWar(def.enemies, s.day), finale: def.finale || null, note: def.note,
+    distant: def.distant || null,
     tutorial: !!def.tutorial, departed: false, departurePaid: false, convoyLost: 0,
     course: 'patrol', plan: null, cool: {}, recon: 0, guard: 0, intel: 1,
     goal: makeGoal(def.orders, def.weeks, streamFor(s.seed, s.turn, 'goal')),
-    setPieces: (SET_PIECES[def.id] || []).map((x) => ({ id: x.id, week: streamFor(s.seed, s.turn, `sp:${x.id}`).range(x.weeks[0], x.weeks[1]), done: false })),
+    setPieces: (SET_PIECES[def.distant || def.id] || []).map((x) => ({ id: x.id, week: streamFor(s.seed, s.turn, `sp:${x.id}`).range(x.weeks[0], x.weeks[1]), done: false })),
     startRecord: { ...s.record }, startDay: s.day,
   };
   s.phase = 'sea';
@@ -111,6 +137,22 @@ function carryOfficers(s, rng, sameShip = false) {
     (s.freshNews ||= []).push(`Lieutenant ${follower}, whom you had promoted from midshipman, has asked to serve as your first lieutenant. The Admiralty has agreed.`);
   }
   return out;
+}
+
+/**
+ * Decline the posting offered (the brief's open question 3). The war goes on
+ * without you for this voyage; the Admiralty remembers.
+ */
+export function declinePosting(s) {
+  const def = currentCommissionDef(s);
+  s.player.interest = clamp(s.player.interest - CONFIG.declineInterest);
+  s.player.rep.service = clamp(s.player.rep.service - CONFIG.declineService);
+  s.flags.declined = (s.flags.declined || 0) + 1;
+  s.onHalfPay = true;
+  s.alt = null;
+  s.reports.push({ day: s.day, title: 'Posting declined', lines: [`You declined the ${def.note ? 'orders' : 'posting'} offered (${STATIONS[def.station]}). You go home on half pay until the next chance; the Admiralty notes it (influence -${CONFIG.declineInterest}, name in the navy -${CONFIG.declineService}).`] });
+  log(s, `Declined a posting to ${STATIONS[def.station]}. Half pay.`, 'career');
+  nextCommission(s);
 }
 
 function nextCommission(s) {
@@ -219,6 +261,12 @@ export function endCommission(s, cause = 'complete') {
     }
     if ((c.slackWeeks || 0) > c.weeks * 0.25) { evaln -= 6; why.push(`a slack ship: discipline broke down for ${c.slackWeeks} of ${c.weeks} weeks`); }
   }
+  // Far from the Admiralty's eye, good work is noticed less (a fortune is the compensation).
+  if (c.distant && evaln > 0) {
+    evaln *= DISTANT[c.distant].notice;
+    why.push('far from the Admiralty\'s eye, where good work is noticed less');
+  }
+  if (c.distant === 'caribbean') s.flags.seasoned = true;
   evaln = round1(evaln);
   // The service forgets: a tenth of the way back toward an ordinary name each
   // commission, so an early action does not carry a whole career.
@@ -243,6 +291,7 @@ export function endCommission(s, cause = 'complete') {
   }
 
   s.flags.commissionsDone = (s.flags.commissionsDone || 0) + 1;
+  s.queue = s.queue.filter((q) => !q.id.startsWith('raid-')); // a raid planned on the last week is abandoned
   growPeople(s, streamFor(s.seed, s.turn, 'grow'));
   if (s.rival && s.rival.status === 'serving' && cause === 'complete') {
     lines.push(`Your rival Carrow: ${s.rival.won} fight${s.rival.won === 1 ? '' : 's'} won, ${s.rival.prizes} prizes. You: ${r.won} won, ${r.prizes} prizes.`);

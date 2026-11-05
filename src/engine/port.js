@@ -2,8 +2,11 @@
 // reason it is locked, so a greyed button always says why (rule 6).
 
 import { CONFIG } from '../data/config.data.js';
+import { ACTS } from '../data/acts.data.js';
+import { DISTANT, ALTERNATIVES } from '../data/stations.data.js';
+import { declinePosting } from './career.js';
 import { dayOf } from './calendar.js';
-import { clamp, crewTotal, complement, manning, baseSkill } from './derive.js';
+import { clamp, crewTotal, complement, manning, baseSkill, band, checkChance } from './derive.js';
 import { money, log, officer } from './state.js';
 import { streamFor } from './rng.js';
 
@@ -35,6 +38,33 @@ function credit(s, cost) {
 /** A note that a purchase will be on credit, so borrowing is never silent. */
 function onCredit(s, cost) {
   return s.money < cost ? ` You have only £${Math.max(0, s.money)}: the rest is borrowed, at interest.` : '';
+}
+
+/** Ask for a distant station instead, or decline the posting altogether. */
+function postingActions(s) {
+  const base = ACTS[s.act]?.commissions[s.com];
+  if (!base || s.act === 0) return [];
+  const out = [];
+  const asked = s.flags[`asked:${base.id}`];
+  for (const key of ALTERNATIVES[base.id] || []) {
+    const d = DISTANT[key];
+    const granted = s.alt && s.alt.key === key;
+    out.push({
+      id: `ask:${key}`, label: granted ? `${d.short}: granted` : d.ask, posting: true,
+      note: `${d.note} Asking spends influence; the answer depends on how much you have (chance: ${band(askChance(s)).toLowerCase()}).`,
+      locked: granted ? 'Granted: these are your orders now.' : s.alt ? 'You already have a distant posting.' : asked ? 'You have asked once already; the answer was no.' : null,
+    });
+  }
+  out.push({
+    id: 'decline', label: 'Decline this posting', posting: true,
+    note: `Go home on half pay instead, until the next posting. The Admiralty remembers: influence -${CONFIG.declineInterest}, name in the navy -${CONFIG.declineService}.`,
+    locked: null,
+  });
+  return out;
+}
+
+export function askChance(s) {
+  return checkChance(s.player.interest, 35);
 }
 
 export function portActions(s) {
@@ -82,6 +112,7 @@ export function portActions(s) {
       note: `Anne is to marry, and your father left her nothing. A brother with prize money was expected to provide.${onCredit(s, 400)}`,
       locked: credit(s, 400),
     }] : []),
+    ...postingActions(s),
     {
       id: 'sail', label: 'Put to sea',
       note: `Crew: ${crewTotal(s)} of ${complement(s)}.`,
@@ -102,6 +133,17 @@ function dilute(s, before) {
 }
 
 export function portChoose(s, id) {
+  if (id.startsWith('ask:')) {
+    const a = portActions(s).find((x) => x.id === id);
+    if (!a || a.locked) return false;
+    const key = id.slice(4);
+    const base = ACTS[s.act].commissions[s.com];
+    s.flags[`asked:${base.id}`] = true;
+    s.player.interest = clamp(s.player.interest - CONFIG.askInterest);
+    const yes = streamFor(s.seed, s.turn, `ask:${key}`).chance(askChance(s));
+    if (yes) { s.alt = { slot: base.id, key }; log(s, `Your request is granted: ${DISTANT[key].label}.`, 'career'); } else log(s, `Your request for ${DISTANT[key].label} is refused.`, 'career');
+    return true;
+  }
   const a = portActions(s).find((x) => x.id === id);
   if (!a) throw new Error(`no port action ${id}`);
   if (a.locked) return false;
@@ -142,6 +184,9 @@ export function portChoose(s, id) {
       s.flags.dowrySent = true;
       log(s, 'You sent Anne her dowry.', 'career');
       break;
+    case 'decline':
+      declinePosting(s);
+      return true;
     case 'powder':
       s.ship.stores.powder += 10;
       money(s, -10 * CONFIG.powderPerBarrel, 'Powder for practice');
