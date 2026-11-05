@@ -24,12 +24,12 @@ export function startBattle(s, kind, rng, support = null) {
     own: {
       broadside: c.broadside, tons: c.tons, crewStart: crewTotal(s), crewNow: crewTotal(s),
       gunnery: eff.gunnery, seamanship: eff.seamanship, morale: morale(s), hull: s.ship.hull, rigging: s.ship.rigging,
-      marines: s.crew.groups.marines, discipline: s.crew.discipline, speed: shipSpeed(s),
+      marines: s.crew.groups.marines, discipline: s.crew.discipline, speed: shipSpeed(s), aim: 'hull',
     },
     foe: {
       name: e.name, flag: e.flag, broadside: e.broadside, tons: e.tons, crewStart: e.crew, crewNow: e.crew,
       gunnery: clamp(e.gunnery + jitter()), seamanship: clamp(e.seamanship + jitter()), morale: clamp(e.morale + jitter()),
-      hull: 100, rigging: 100, speed: e.speed, marines: 0, discipline: 60,
+      hull: 100, rigging: 100, speed: e.speed, marines: 0, discipline: 60, aim: e.aim || 'hull',
     },
     lines: [],
     result: e.fights ? null : 'won',
@@ -76,10 +76,13 @@ export function exchange(att, def, mult, rng, range = 'close') {
   const mf = b.moraleBase + 0.6 * (att.morale / 100);
   const man = clamp(att.crewNow / att.crewStart, 0.2, 1);
   const landed = att.broadside * accuracy(att) * rateOfFire(att) * mf * man * mult * (att.fortune || 1) * rng.float(0.8, 1.2);
-  const hull = Math.min(def.hull, landed * b.hullPerDamage / (def.tons / 100));
-  const cas = Math.min(def.crewNow, Math.round(def.crewStart * (hull / 100) * b.casualtyRatio * rng.float(0.7, 1.3)));
+  const aim = b.aim[att.aim || 'hull'];
+  const raw = landed * b.hullPerDamage / (def.tons / 100);
+  const hull = Math.min(def.hull, raw * aim.hull);
+  const menMult = aim.men * (range === 'long' ? b.longCasualties : 1);
+  const cas = Math.min(def.crewNow, Math.round(def.crewStart * (raw / 100) * b.casualtyRatio * menMult * rng.float(0.7, 1.3)));
   def.hull = clamp(def.hull - hull);
-  def.rigging = clamp(def.rigging - hull * (range === 'long' ? 0.9 : 0.4));
+  def.rigging = clamp(def.rigging - raw * (range === 'long' ? 0.9 : 0.4) * aim.rigging);
   def.crewNow = Math.max(0, def.crewNow - cas);
   return { hull, cas };
 }
@@ -103,6 +106,34 @@ function volley(s, rng, ownMult, foeMult, range, label) {
     s.player.alive = false;
     bt.lines.push('A musket ball from her tops strikes you down on your own quarterdeck.');
   }
+  // At close range a ship with many more men tries to board you, once.
+  if (range === 'close' && foeMult && s.player.alive && !bt.foeBoarded && !struck(bt.foe) && bt.foe.morale >= B().boardSpirit && bt.foe.crewNow > bt.own.crewNow * B().boardIfOutnumber) {
+    bt.foeBoarded = true;
+    enemyBoards(s, rng);
+  }
+}
+
+/** The enemy, stronger in men, comes over your side. */
+function enemyBoards(s, rng) {
+  const bt = s.battle;
+  const p = boardChance(bt); // your strength against hers, as when you board her
+  const hold = rng.chance(clamp(p + 0.05, 0.1, 0.95)); // defending your own deck helps a little
+  const own = Math.round(bt.own.crewNow * rng.float(0.10, 0.18));
+  const foe = Math.round(bt.foe.crewNow * rng.float(0.06, 0.12));
+  bt.own.crewNow -= own; bt.foe.crewNow -= foe;
+  if (hold) {
+    bt.foe.morale = clamp(bt.foe.morale - 5);
+    bt.lines.push(`Her boarders come over your side. Pike and cutlass on your own deck: you throw them back, losing ${own}; she loses ${foe}.`);
+  } else {
+    bt.own.crewNow = Math.min(bt.own.crewNow, Math.round(bt.own.crewStart * 0.68));
+    bt.own.morale = clamp(bt.own.morale - 18);
+    bt.lines.push(`Her boarders come over your side in a mass and carry your forecastle. You lose ${own} men and the deck.`);
+  }
+}
+
+/** Crippled aloft: masts and rigging shot away. */
+export function crippled(side) {
+  return side.rigging < B().crippledRigging;
 }
 
 function checkStrike(s) {
@@ -113,15 +144,22 @@ function checkStrike(s) {
   return false;
 }
 
+/** Keeping the range open against an enemy who wants to close. */
+function rangeChance(bt) {
+  if (crippled(bt.own)) return 0.05;
+  return checkChance(bt.own.seamanship + (bt.own.speed - bt.foe.speed) * 1.5 + (bt.gauge === 'own' ? 15 : 0) + (crippled(bt.foe) ? 30 : 0), bt.foe.seamanship);
+}
+
 function escapeChance(bt) {
-  return checkChance(bt.own.seamanship + (bt.own.speed - bt.foe.speed) * 1.5, bt.foe.seamanship);
+  if (crippled(bt.own)) return 0.05;
+  return checkChance(bt.own.seamanship + (bt.own.speed - bt.foe.speed) * 1.5 + (crippled(bt.foe) ? 30 : 0), bt.foe.seamanship);
 }
 function gaugeChance(bt) {
   return checkChance(bt.own.seamanship, bt.foe.seamanship);
 }
 function rakeChance(bt) {
   const g = bt.gauge === 'own' ? 15 : bt.gauge === 'foe' ? -15 : 0;
-  return checkChance(bt.own.seamanship + g, bt.foe.seamanship + 5);
+  return checkChance(bt.own.seamanship + g + (crippled(bt.foe) ? 25 : 0) - (crippled(bt.own) ? 25 : 0), bt.foe.seamanship + 5);
 }
 function boardChance(bt) {
   const own = bt.own.crewNow * (bt.own.morale / 100) * (1 + bt.own.marines / Math.max(1, bt.own.crewStart)) * (0.6 + bt.own.discipline / 200);
@@ -140,12 +178,13 @@ export function battleOptions(s) {
       { id: 'refuse', label: 'Run for it', tags: ['cautious'], stake: `Chance: ${band(escapeChance(bt)).toLowerCase()} (speed and seamanship). ${sizeRatio(bt) > 1 ? 'She is weaker than you: the navy will notice you ran.' : 'No shame in avoiding a stronger ship.'}` },
     ];
     case 'engage': return [
-      { id: 'long', label: 'Fight at long range', tags: ['cautious', 'drill'], stake: 'Three exchanges of fire at a distance. Slower and safer; the better gunners win.' },
+      { id: 'long', label: 'Fight at long range', tags: ['cautious'], stake: 'Three exchanges of fire at a distance. Slower and safer; the better gunners win.' },
       { id: 'close', label: 'Close in, side by side', tags: ['bold', 'fair'], stake: 'Two exchanges at point-blank range. Quick, decisive and bloody for both.' },
       { id: 'rake', label: 'Cross her bow and rake her', tags: ['bold', 'initiative'], stake: `Chance: ${band(rakeChance(bt)).toLowerCase()} (seamanship${bt.gauge === 'own' ? ', helped by being upwind' : bt.gauge === 'foe' ? ', hindered by her being upwind' : ''}). If it works, you fire down her whole length while she cannot reply. If not, she does it to you.` },
     ];
     case 'decide': return [
-      { id: 'pound', label: 'Keep firing until she surrenders', tags: ['fair', 'cautious', 'obey'], stake: `Up to ${B().poundVolleys} more exchanges at close range.` },
+      { id: 'pound', label: 'Keep firing until she surrenders', tags: ['fair', 'cautious', 'obey'], stake: `Up to ${B().poundVolleys} more exchanges at close range.${bt.foe.crewNow > bt.own.crewNow * B().boardIfOutnumber && bt.foe.morale >= B().boardSpirit && !bt.foeBoarded ? ' She has far more men, and at close range she will try to board you.' : ''}` },
+      { id: 'distance', label: 'Keep your distance and keep firing', tags: ['cautious'], stake: `Chance to hold the range: ${band(rangeChance(bt)).toLowerCase()} (seamanship and speed${bt.gauge === 'own' ? ', helped by being upwind' : ''}). Six exchanges at long range: fewer men lost, no boarding, and the better gunners win. She may get away.` },
       { id: 'board', label: 'Board her', tags: ['bold'], stake: `Chance: ${band(boardChance(bt)).toLowerCase()}. You have ${bt.own.crewNow} men to her ${bt.foe.crewNow}. Hand-to-hand fighting on her deck: brutal and costly either way.` },
       { id: 'break', label: 'Break off and get away', tags: ['cautious'], stake: `Chance: ${band(escapeChance(bt)).toLowerCase()}. ${sizeRatio(bt) > 1 ? 'Running from a weaker ship will be remembered.' : 'No disgrace in leaving a stronger ship.'}` },
     ];
@@ -203,7 +242,7 @@ export function battleChoose(s, id, rng) {
           if (checkStrike(s)) return;
         }
       } else if (id === 'rake') {
-        if (rng.chance(rakeChance(bt))) volley(s, rng, b.rakeMult, 0, 'close', 'You cross her bow and rake her');
+        if (rng.chance(rakeChance(bt))) { volley(s, rng, b.rakeMult, 0, 'close', 'You cross her bow and rake her'); bt.foe.morale = clamp(bt.foe.morale - b.rakeMorale); }
         else volley(s, rng, 0, b.raked, 'close', 'She luffs up and rakes you');
         if (checkStrike(s)) return;
         volley(s, rng, 1.0, 1.0, 'close', 'Yardarm to yardarm');
@@ -234,6 +273,20 @@ export function battleChoose(s, id, rng) {
         bt.own.morale = clamp(bt.own.morale - 12);
         volley(s, rng, 1.0, 1.0, 'close', 'Close action resumes');
         if (checkStrike(s)) return;
+      } else if (id === 'distance') {
+        if (rng.chance(rangeChance(bt))) {
+          bt.lines.push('You hold her at long range, where your gunnery tells.');
+          for (let i = 1; i <= 6; i++) {
+            volley(s, rng, b.rangeMult.long, b.rangeMult.long, 'long', `Long range, broadside ${i}`);
+            if (checkStrike(s)) return;
+          }
+        } else {
+          bt.lines.push('She closes the range in spite of you.');
+          for (let i = 1; i <= 2; i++) {
+            volley(s, rng, 1.0, 1.0, 'close', `Close action, broadside ${i}`);
+            if (checkStrike(s)) return;
+          }
+        }
       } else if (id === 'break') {
         if (rng.chance(escapeChance(bt))) {
           bt.result = 'broke'; bt.phase = 'done';
@@ -243,6 +296,15 @@ export function battleChoose(s, id, rng) {
         bt.lines.push('She will not let you go.');
         volley(s, rng, 1.0, 1.0, 'close', 'Running fight');
         if (checkStrike(s)) return;
+      }
+      if (crippled(bt.foe) && !bt.extra) {
+        // She cannot get away with her masts shot through: the fight goes on.
+        bt.extra = true;
+        bt.lines.push('Her masts are shot through and she cannot get away.');
+        for (let i = 1; i <= 2; i++) {
+          volley(s, rng, 1.0, 1.0, 'close', `She lies helpless, broadside ${i}`);
+          if (checkStrike(s)) return;
+        }
       }
       bt.result = 'drawn'; bt.phase = 'done';
       bt.lines.push('Night falls on two battered ships. She makes off in the dark.');
@@ -286,6 +348,21 @@ export function closeBattle(s, rng) {
     removeMen(s, dead);
     s.record.killed += dead;
     bt.lines.push(`${dead} dead or dying; ${lost - dead} wounded who will recover.`);
+    // In a bloody fight, officers and men you know by name fall too.
+    const share = lost / Math.max(1, bt.own.crewStart);
+    const fr = rng;
+    for (const o of s.officers) {
+      if (o.status !== 'aboard' || !fr.chance(share * B().officerFallPerLoss)) continue;
+      o.status = 'killed';
+      bt.lines.push(`${o.name}, your ${o.label.toLowerCase()}, was killed.`);
+      log(s, `${o.name}, ${o.label.toLowerCase()}, killed in action.`, 'battle');
+    }
+    for (const m of s.named) {
+      if ((m.status !== 'aboard' && m.status !== 'rated') || !fr.chance(share * B().officerFallPerLoss * 0.6)) continue;
+      m.status = 'dead';
+      bt.lines.push(`${m.name}, ${m.role}, was killed at his gun.`);
+      log(s, `${m.name} killed in action.`, 'battle');
+    }
   }
   if (fought) s.record.actions++;
   const ratio = sizeRatio(bt);

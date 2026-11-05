@@ -71,9 +71,24 @@ export const CONFIG = {
   // ---- money (pounds sterling) ----------------------------------------------
   payPerWeek: { commander: 6, captain: 8 },
   halfPayPerWeek: 3,
-  tablePerWeek: 3,              // the captain's table and servants, at sea
+  tablePerWeek: 3,              // the captain's table and servants, at sea (sloop)
+  // A bigger ship meant a bigger table: officers and admirals to dine. Many
+  // captains spent more than their pay at sea. VERIFY rates against pay lists.
+  tableByClass: { sloop: 3, frigate32: 6, frigate38: 8, frigate40: 10 },
+  payByClass: { sloop: 6, frigate32: 8, frigate38: 9, frigate40: 10 },
+  outfitByClass: { sloop: 100, frigate32: 200, frigate38: 300, frigate40: 400 }, // cabin stores, plate, wine for a new ship
+  prizeAgent: 0.05,             // the prize agent's commission on every payout
+  debtInterest: 0.06,           // moneylenders, per return to port, on what you owe
+  creditLimit: -1500,           // how far the lenders will let you borrow for spending in port
+  debtPatience: 3,              // returns to port in debt, running, before the creditors call it in
+  debtRuin: -1800,              // past the lenders' limit, interest and half pay finish you
+  entertainCost: 150,           // dining the admiral and the port's notables
+  // Pressure: the better things are, the harder they are to keep.
+  driverCeiling: 70,            // above this, gains shrink and the drift back is stronger
+  seniorExpectation: 0.35,      // per year since made post: more is expected of a senior captain
+  serviceForget: 0.15,          // share of the way back toward 40 each voyage
+  longVoyage: 8,                // weeks out before the men tire of the voyage itself
   powderPerBarrel: 6,           // powder bought above the allowance, from your own purse (Broke)
-  debtRuin: -2500,
   // Prize shares (captain's fraction of the prize's value). Before the 1808
   // proclamation the captain took 3/8, less one eighth to the flag officer when
   // under an admiral's orders. After 1808, 2/8, with the flag taking a third of
@@ -103,7 +118,7 @@ export const CONFIG = {
     // about twice as fast as French ones (VERIFY the ratio; Broke, Hornblower-era sources vary).
     rateBase: 0.6, rateSkill: 0.8,
     moraleBase: 0.7,
-    rangeMult: { long: 0.45, close: 1.0 },
+    rangeMult: { long: 0.55, close: 1.0 },
     hullPerDamage: 0.77,        // hull points per pound of shot landed, per 100 tons of ship
     casualtyRatio: 0.6,         // share of the crew hit per point of hull lost (x jitter)
     strikeHull: 0.3,
@@ -113,6 +128,16 @@ export const CONFIG = {
     poundVolleys: 4,
     captainKilledClose: 0.0025,
     captainKilledBoard: 0.02,
+    // Where a nation's gunners aimed: high at masts and rigging (French,
+    // American) or low into the hull (British, Spanish). Multipliers on what
+    // a hit does to hull, men and rigging.
+    aim: { hull: { hull: 1, men: 1, rigging: 1 }, rigging: { hull: 0.7, men: 0.7, rigging: 2 } },
+    longCasualties: 0.6,        // shot at long range wrecks more than it kills
+    boardIfOutnumber: 1.3,      // an enemy this much stronger in men tries to board at close range
+    boardSpirit: 50,            // ...if her crew's morale is at least this (Spanish crews seldom tried it)
+    crippledRigging: 40,        // below this a ship cannot get away and is easy to rake
+    rakeMorale: 10,             // a successful rake shakes the enemy's nerve
+    officerFallPerLoss: 0.5,    // chance per officer, per share of the crew lost, of falling
   },
 
 

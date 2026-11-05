@@ -77,9 +77,13 @@ export function prepareCommission(s) {
   if (!s.ship || s.ship.lost || s.ship.cls !== off.cls) {
     const prevName = s.ship && !s.ship.lost ? s.ship.name : null;
     assignShip(s, off.cls, rng, { fresh: !s.crew });
+    money(s, -CONFIG.outfitByClass[off.cls], 'Fitting out the cabin of a new ship: stores, plate and wine');
     if (s.ship.name === prevName) s.ship.name = `${s.ship.name} II`;
     s.officers = carryOfficers(s, rng);
     log(s, `Appointed to the ${SHIP_CLASSES[off.cls].name} ${s.ship.name}. ${off.reason}`, 'career');
+  } else if (['first', 'master', 'surgeon', 'mid1', 'mid2'].some((p) => !s.officers.some((o) => o.post === p && o.status === 'aboard'))) {
+    // Places left empty by death, promotion or transfer are filled in port.
+    s.officers = carryOfficers(s, rng, true);
   }
   openPort(s, def.station === 'med' ? 'Gibraltar' : def.station === 'lisbon' ? 'Plymouth' : def.station === 'northatlantic' ? 'Halifax' : 'Portsmouth');
   s.port.mail = makeMail(s, streamFor(s.seed, s.turn, 'mail'));
@@ -90,10 +94,11 @@ export function prepareCommission(s) {
  * empty first lieutenant's place goes to a lieutenant you had promoted, if one
  * is free: captains built their wardrooms from their own followers.
  */
-function carryOfficers(s, rng) {
+function carryOfficers(s, rng, sameShip = false) {
   const fresh = makeOfficers(s, rng);
   const out = fresh.map((o) => {
-    const old = s.officers.find((x) => x.post === o.post && x.status === 'aboard' && x.loyalty >= 55);
+    // On the same ship everyone stays; to a new ship only the loyal follow.
+    const old = s.officers.find((x) => x.post === o.post && x.status === 'aboard' && (sameShip || x.loyalty >= 55));
     return old ? { ...old } : o;
   });
   const first = out.find((o) => o.post === 'first');
@@ -170,9 +175,16 @@ export function endCommission(s, cause = 'complete') {
   // Prize money
   let paid = 0;
   for (const p of s.prizesPending) {
-    money(s, p.share, `Prize money: ${p.name}`);
-    paid += p.share;
-    lines.push(`${p.burnt ? 'Head money for' : 'Prize money for'} the ${p.name} (valued at £${p.value}): your share is £${p.share}.`);
+    const agent = Math.round(p.share * CONFIG.prizeAgent);
+    money(s, p.share - agent, `Prize money: ${p.name} (less the agent's ${Math.round(CONFIG.prizeAgent * 100)}%)`);
+    paid += p.share - agent;
+    lines.push(`${p.burnt ? 'Head money for' : 'Prize money for'} the ${p.name} (valued at £${p.value}): your share is £${p.share}, less £${agent} to your prize agent.`);
+  }
+  // Debts gather interest while you are at sea.
+  if (s.money < 0) {
+    const due = Math.round(-s.money * CONFIG.debtInterest);
+    money(s, -due, 'Interest to the moneylenders');
+    lines.push(`You owe £${-s.money}. The moneylenders take £${due} in interest.`);
   }
   if (s.prizesPending.length) s.crew.drivers.prospects = clamp(s.crew.drivers.prospects + 4 * s.prizesPending.length);
   s.prizesPending = [];
@@ -194,6 +206,12 @@ export function endCommission(s, cause = 'complete') {
       if (Math.abs(v) >= 1) { evaln += v; why.push(`your punishment record (${rate} lashes a year per 100 men) ${v > 0 ? 'meets with his approval' : 'counts against you'}`); }
     }
     if (s.ship.hull < 40) { evaln -= 2; why.push('the ship came home badly damaged'); }
+    // The longer you have been post, the more is expected of you.
+    if (s.player.rank === 'captain' && s.player.postDay != null) {
+      const years = (s.day - s.player.postDay) / 365;
+      const ex = round1(Math.min(5, years * CONFIG.seniorExpectation));
+      if (ex >= 1) { evaln -= ex; why.push(`more is expected of a captain of ${Math.floor(years)} years' seniority`); }
+    }
     // The voyage's own goal (content/missions.js), judged by the order type.
     const g = goalStatus(s);
     if (g) {
@@ -204,7 +222,7 @@ export function endCommission(s, cause = 'complete') {
   evaln = round1(evaln);
   // The service forgets: a tenth of the way back toward an ordinary name each
   // commission, so an early action does not carry a whole career.
-  rep.service = clamp(rep.service + (40 - rep.service) * 0.1 + evaln);
+  rep.service = clamp(rep.service + (40 - rep.service) * CONFIG.serviceForget + evaln);
   rep.public = clamp(rep.public + (15 - rep.public) * 0.1);
   lines.unshift(`${sup.name}'s report on you is ${evaln >= 4 ? 'warm' : evaln > 0 ? 'favourable' : evaln === 0 ? 'neutral' : evaln > -4 ? 'cool' : 'damning'} (${evaln >= 0 ? '+' : ''}${evaln} to your name in the navy). ${why.length ? `He notes: ${why.join('; ')}.` : 'Nothing out of the ordinary.'}`);
   if (r.won - st.won > 0 && rep.public > 25) lines.push('Your report of the fight is printed in the London Gazette, the official newspaper. The public know your name.');
@@ -239,7 +257,11 @@ export function endCommission(s, cause = 'complete') {
 /** After the report screen. */
 export function afterReport(s) {
   if (s.ending) { s.phase = 'ended'; return; }
-  if (s.money < CONFIG.debtRuin) { finish(s, 'debt'); return; }
+  // Creditors are patient for a while. Still in debt at three returns running,
+  // or deeper than the ruin line, and they call it in.
+  s.flags.debtStreak = s.money < 0 ? (s.flags.debtStreak || 0) + 1 : 0;
+  if (s.money < CONFIG.debtRuin || s.flags.debtStreak >= CONFIG.debtPatience) { finish(s, 'debt', ['Your creditors have called in your debts. You cannot pay.']); return; }
+  if (s.flags.debtStreak) (s.freshNews ||= []).push(`Your agent writes: you owe £${-s.money}, and your creditors are growing impatient (${s.flags.debtStreak} of ${CONFIG.debtPatience} returns in debt).`);
   nextCommission(s);
 }
 

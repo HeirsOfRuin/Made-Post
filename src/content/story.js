@@ -50,6 +50,8 @@ const FAMILY = [
   { id: 'mutiny', when: (s) => s.record.mutinies > 0, text: () => 'Anne writes: "There is talk in town about your ship. I have told everyone it is nonsense. Write and tell me it is."' },
   { id: 'married', when: (s) => yearOf(s.day) >= 1802, text: () => 'Anne writes that she is to marry Mr Lowther, the curate. "He is very dull and very kind, and I am happy."' },
   { id: 'nelson', when: (s) => s.day >= dayNum('1805-11-10'), text: () => 'Anne writes: "All London was in black for Lord Nelson. They say the crowds at St Paul\'s were silent for an hour."' },
+  { id: 'dowry-thanks', when: (s) => s.flags.dowrySent, text: () => 'Anne writes: "Mr Lowther and I have taken a house with a garden. I have planted roses and named the best one after your ship. Thank you, dear brother."' },
+  { id: 'dowry-none', when: (s) => s.flags['family:married'] && !s.flags.dowrySent && yearOf(s.day) >= 1805, text: () => 'Anne writes, shortly: they are living in two rooms above the chandler\'s. She does not mention money. She does not need to.' },
   { id: 'mother', when: (s) => yearOf(s.day) >= 1810, text: () => 'A letter edged in black: your mother died in March, peacefully. Anne was with her. She asked after you to the end.' },
   { id: 'lashes', when: (s) => s.record.lashes > 1500, text: () => 'Anne writes, carefully: "Mr Lowther read in a pamphlet that some captains flog their men like dogs. I said you were not one of them. You are not, are you?"' },
 ];

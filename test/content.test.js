@@ -35,7 +35,7 @@ test('Spain and the United States appear only when at war with Britain', () => {
   for (const act of ACTS) for (const c of act.commissions) {
     const end = dayOf(c.start) + c.weeks * 7;
     if (c.enemies.spanish) assert.ok(atWar(spain, c.start, end), `${c.id} meets Spanish ships outside the wars`);
-    if (c.enemies.american) assert.ok(atWar(usa, c.start, end), `${c.id} meets American ships outside the war`);
+    if (c.enemies.american || c.enemies.american38) assert.ok(atWar(usa, c.start, end), `${c.id} meets American ships outside the war`);
   }
 });
 

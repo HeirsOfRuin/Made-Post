@@ -25,7 +25,7 @@ import { runAction } from '../content/missions.js';
 import { ARCS, ARC_IDS } from '../content/voyage.js';
 import { streamFor } from './rng.js';
 import { clamp, morale, baseSkill, crewTotal, manning, pressedShare, lemonJuice, mutinyStage, ANARCHY } from './derive.js';
-import { OFFENCES, policySeverity, punish } from './effects.js';
+import { OFFENCES, policySeverity, punish, bump } from './effects.js';
 import { dayOf } from './calendar.js';
 import { log, officer, money } from './state.js';
 import { removeMen } from './battle.js';
@@ -128,9 +128,12 @@ export function seaWeek(s) {
 
   // 5 drivers -------------------------------------------------------------------
   const ot = ORDER_TYPES[c.orders];
-  d.prospects = clamp(d.prospects + ot.prospects + (traits.prospects || 0));
+  bump(s, 'prospects', ot.prospects + (traits.prospects || 0));
   if (traits.trustDrift) d.trust = clamp(d.trust + traits.trustDrift);
-  for (const k of Object.keys(d)) d[k] = clamp(d[k] + (50 - d[k]) * CONFIG.driverDrift);
+  // Drift back toward 50, harder from the heights: a contented crew takes keeping.
+  for (const k of Object.keys(d)) d[k] = clamp(d[k] + (50 - d[k]) * CONFIG.driverDrift * (d[k] > CONFIG.driverCeiling ? 1.6 : 1));
+  // Months out: the men tire of the voyage itself, whatever else is true.
+  if (c.week >= CONFIG.longVoyage) { d.workload = clamp(d.workload - 0.8); d.provisions = clamp(d.provisions - 0.6); d.prospects = clamp(d.prospects - 0.5); }
   // Named men move with the ship, each by what he cares about most.
   for (const n of s.named) {
     if (n.status !== 'aboard') continue;
@@ -194,7 +197,7 @@ export function seaWeek(s) {
   s.record.meanCrew = Math.round(s.record.crewWeeks / s.record.weeksAtSea);
 
   // pay and the captain's table
-  money(s, CONFIG.payPerWeek[s.player.rank] - CONFIG.tablePerWeek, 'Pay less the captain\'s table');
+  money(s, CONFIG.payByClass[s.ship.cls] - CONFIG.tableByClass[s.ship.cls], 'Pay less the captain\'s table');
 
   // Close inshore the ship works among rocks and shoals.
   if (course.shoal) {

@@ -79,7 +79,7 @@ export const ACTS = [
       },
       {
         id: 'a4c2', start: '1812-10-04', weeks: 12, orders: 'cruise', station: 'northatlantic',
-        superior: 'warren', enemies: { merchant: 4, privateer: 3, american: 1 },
+        superior: 'warren', enemies: { merchant: 4, privateer: 3, american: 1, american38: 1 },
         note: 'Hunt American merchant ships off Newfoundland. The Admiralty has ordered frigates not to fight the big American 44-gun ships alone.',
       },
       {

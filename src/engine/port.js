@@ -24,6 +24,19 @@ export function quotaYield(s) {
   return Math.min(room(s), Math.round(complement(s) * 0.15));
 }
 
+/**
+ * Captains borrowed against prize money still to come. Spending is allowed on
+ * credit down to the lenders' limit; the debt draws interest at every return.
+ */
+function credit(s, cost) {
+  return s.money - cost < CONFIG.creditLimit ? `Your creditors will lend you no more (you owe £${Math.max(0, -s.money)}).` : null;
+}
+
+/** A note that a purchase will be on credit, so borrowing is never silent. */
+function onCredit(s, cost) {
+  return s.money < cost ? ` You have only £${Math.max(0, s.money)}: the rest is borrowed, at interest.` : '';
+}
+
 export function portActions(s) {
   const done = s.port.done;
   const followers = s.officers.filter((o) => (o.post === 'mid1' || o.post === 'mid2') && o.status === 'aboard' && o.competence >= 50);
@@ -32,7 +45,7 @@ export function portActions(s) {
     {
       id: 'volunteers', label: 'Recruit volunteers',
       note: `About ${volunteerYield(s)} willing seamen, more if sailors think well of you. Costs £25.`,
-      locked: done.volunteers ? 'Done this time in port.' : !room(s) ? 'The ship is fully manned.' : s.money < 25 ? 'You cannot afford the £25.' : null,
+      locked: done.volunteers ? 'Done this time in port.' : !room(s) ? 'The ship is fully manned.' : credit(s, 25),
     },
     {
       id: 'press', label: 'Send the press gang out',
@@ -47,7 +60,7 @@ export function portActions(s) {
     {
       id: 'powder', label: `Buy 10 barrels of powder for practice (£${10 * CONFIG.powderPerBarrel})`,
       note: `Extra powder for gun practice, from your own pocket. You have ${Math.round(s.ship.stores.powder)} barrels; gun training uses ${CONFIG.drill.gunnery.powder} a week.`,
-      locked: (done.powder || 0) >= 3 ? 'The ordnance wharf will sell you no more this time.' : s.money < 10 * CONFIG.powderPerBarrel ? `You cannot afford £${10 * CONFIG.powderPerBarrel}.` : null,
+      locked: (done.powder || 0) >= 3 ? 'The ordnance wharf will sell you no more this time.' : credit(s, 10 * CONFIG.powderPerBarrel),
     },
     {
       id: 'liberty', label: 'Give the men shore leave',
@@ -59,6 +72,16 @@ export function portActions(s) {
       note: followers.length ? `${followers[0].name} is ready. Uses some of your influence; he will be loyal to you for life, and it counts to your credit.` : 'None of your midshipmen is ready yet.',
       locked: done.recommend ? 'Done this time in port.' : !followers.length ? 'No midshipman is ready.' : s.player.interest < 10 ? 'You do not have enough influence to get anyone promoted.' : null,
     },
+    {
+      id: 'entertain', label: `Dine the admiral (£${CONFIG.entertainCost})`,
+      note: `A dinner for the admiral and the port's notables: turtle, claret and flattery. Influence rises and your patron hears well of you.${onCredit(s, CONFIG.entertainCost)}`,
+      locked: done.entertain ? 'Done this time in port.' : credit(s, CONFIG.entertainCost),
+    },
+    ...(s.flags['family:married'] && !s.flags.dowrySent && !s.flags.dowryRefused ? [{
+      id: 'dowry', label: 'Send Anne her dowry (£400)',
+      note: `Anne is to marry, and your father left her nothing. A brother with prize money was expected to provide.${onCredit(s, 400)}`,
+      locked: credit(s, 400),
+    }] : []),
     {
       id: 'sail', label: 'Put to sea',
       note: `Crew: ${crewTotal(s)} of ${complement(s)}.`,
@@ -108,6 +131,17 @@ export function portChoose(s, id) {
       log(s, `${n} quota men came aboard.`, 'crew');
       break;
     }
+    case 'entertain':
+      money(s, -CONFIG.entertainCost, 'Dining the admiral');
+      s.player.interest = clamp(s.player.interest + 3);
+      s.patron.standing = clamp(s.patron.standing + 2);
+      log(s, 'You dined the admiral. He was gracious about the claret.', 'career');
+      break;
+    case 'dowry':
+      money(s, -400, 'Anne\'s dowry');
+      s.flags.dowrySent = true;
+      log(s, 'You sent Anne her dowry.', 'career');
+      break;
     case 'powder':
       s.ship.stores.powder += 10;
       money(s, -10 * CONFIG.powderPerBarrel, 'Powder for practice');

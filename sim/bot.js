@@ -21,7 +21,7 @@ export const POLICIES = {
     setup: { officers: 'shipmates', men: 'mixed', command: 'firm' },
     orders: { drill: 'mixed', rations: 'full', work: 'normal', discipline: 'firm' },
     prefer: ['fair', 'care', 'obey', 'bold', 'drill', 'cautious', 'cheap'],
-    port: { press: 0.8, volunteers: true, quota: true, powder: 1, liberty: true, recommend: true },
+    port: { press: 0.8, volunteers: true, quota: true, powder: 1, liberty: true, recommend: true, entertain: 1500, dowry: 2000 },
   },
   harsh: {
     sea: { course: 'inshore', plan: (v) => actionBy(v, ['bold']) },
@@ -128,6 +128,8 @@ function portMove(v, port, s) {
   if ((s.port.done.powder || 0) < port.powder && can('powder') && v.captain.money > 200) return 'powder';
   if (port.liberty && can('liberty')) return 'liberty';
   if (port.recommend && can('recommend')) return 'recommend';
+  if (port.entertain && can('entertain') && v.captain.money > port.entertain) return 'entertain';
+  if (port.dowry && can('dowry') && v.captain.money > port.dowry) return 'dowry';
   if (can('sail')) return 'sail';
   if (can('press')) return 'press';
   if (can('quota')) return 'quota';

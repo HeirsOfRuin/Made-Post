@@ -55,20 +55,27 @@ export const ENEMIES = {
   },
   privateer: {
     name: 'privateer brig', flag: 'French', broadside: 42, tons: 200, crew: 90,
-    gunnery: 40, seamanship: 62, morale: 55, speed: 66, prize: [1500, 3500], fights: true,
+    gunnery: 40, seamanship: 62, morale: 55, speed: 66, prize: [1500, 3500], fights: true, aim: 'hull',
   },
   // A typical French 36 of the period (12- and 18-pounder ships both served;
   // this row averages them). VERIFY against Winfield's French volume.
   french: {
     name: 'frigate', flag: 'French', broadside: 250, tons: 950, crew: 300,
-    gunnery: 45, seamanship: 48, morale: 55, speed: 63, prize: [15000, 25000], fights: true,
+    gunnery: 45, seamanship: 48, morale: 55, speed: 63, prize: [15000, 25000], fights: true, aim: 'rigging',
   },
   spanish: {
     name: 'frigate', flag: 'Spanish', broadside: 200, tons: 900, crew: 300,
-    gunnery: 35, seamanship: 42, morale: 45, speed: 57, prize: [18000, 40000], fights: true,
+    gunnery: 35, seamanship: 42, morale: 45, speed: 57, prize: [18000, 40000], fights: true, aim: 'hull',
   },
   american: {
     name: 'heavy frigate', flag: 'American', broadside: 620, tons: 1530, crew: 450,
-    gunnery: 74, seamanship: 70, morale: 70, speed: 64, prize: [20000, 30000], fights: true,
+    gunnery: 74, seamanship: 70, morale: 70, speed: 64, prize: [20000, 30000], fights: true, aim: 'rigging',
+  },
+  // An American 38 such as the Chesapeake: a match for a British 38, not the
+  // 44s that beat Guerriere, Macedonian and Java. Here the Shannon's lesson can
+  // be learned. VERIFY broadside (carronades) and crew.
+  american38: {
+    name: 'frigate', flag: 'American', broadside: 330, tons: 1240, crew: 380,
+    gunnery: 58, seamanship: 60, morale: 62, speed: 62, prize: [12000, 20000], fights: true, aim: 'rigging',
   },
 };

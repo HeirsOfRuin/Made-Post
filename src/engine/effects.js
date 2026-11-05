@@ -29,6 +29,14 @@ export function policySeverity(policy, gravity) {
  * Fairness rises when punishment fits the offence, falls hard when it exceeds
  * it and a little when it falls well short (the men see favourites).
  */
+/** Raise or lower a driver; gains shrink above the ceiling, so contentment has to be kept up. */
+export function bump(s, k, delta) {
+  const d = s.crew.drivers;
+  const x = d[k];
+  const scale = delta > 0 && x > CONFIG.driverCeiling ? Math.max(0.25, 1 - (x - CONFIG.driverCeiling) / 40) : 1;
+  d[k] = clamp(x + delta * scale);
+}
+
 export function punish(s, gravity, severity, who = null) {
   const sev = Math.round(clamp(severity, 0, 4));
   const diff = sev - gravity;
@@ -37,7 +45,7 @@ export function punish(s, gravity, severity, who = null) {
   if (Math.abs(diff) <= 0.75) df = CONFIG.fairnessPerJust;
   else if (diff > 0.75) df = -CONFIG.fairnessPerExcess * (diff - 0.5);
   else if (diff < -1) df = -CONFIG.fairnessPerSoft * (-diff - 1);
-  d.fairness = clamp(d.fairness + df);
+  bump(s, 'fairness', df);
   s.crew.discipline = clamp(s.crew.discipline + CONFIG.disciplinePerSeverity * sev - 0.4);
   if (diff > 1.25) s.crew.grievance = clamp(s.crew.grievance + 1.2 * (diff - 1));
   const r = s.record;
@@ -58,7 +66,7 @@ export function apply(s, ops, rng, ctx = {}) {
   for (const op of ops || []) {
     const [k, a, b, c] = op;
     switch (k) {
-      case 'driver': s.crew.drivers[a] = clamp(s.crew.drivers[a] + b); break;
+      case 'driver': bump(s, a, b); break;
       case 'discipline': s.crew.discipline = clamp(s.crew.discipline + a); break;
       case 'grievance': s.crew.grievance = clamp(s.crew.grievance + a); break;
       case 'rep': s.player.rep[a] = clamp(s.player.rep[a] + b); break;

@@ -14,7 +14,7 @@
 import { CONFIG } from '../data/config.data.js';
 import { ACTS, SUPERIORS } from '../data/acts.data.js';
 import { ORDER_TYPES, STATIONS, COURSES, COURSE_ORDERS } from '../data/orders.data.js';
-import { SHIP_CLASSES, SHIP_TRAITS } from '../data/ships.data.js';
+import { SHIP_CLASSES, SHIP_TRAITS, ENEMIES } from '../data/ships.data.js';
 import { GROUPS, FAULTS } from '../data/cast.data.js';
 import { EVENTS } from '../content/events.js';
 import { streamFor } from './rng.js';
@@ -204,7 +204,7 @@ function resolveOption(s, id) {
 }
 
 export function chaseChance(s, kind) {
-  const e = { merchant: 52, privateer: 66, french: 63, spanish: 57, american: 64 }[kind];
+  const e = ENEMIES[kind].speed;
   const sea = D.effective(s).seamanship;
   return D.checkChance(sea + (D.shipSpeed(s) - e) * 2, 50);
 }

@@ -11,7 +11,7 @@ import { seRate } from './harness-stats.js';
 
 export const PLANS = {
   steady: { approach: 'gauge', engage: 'close', decide: 'pound', after: 'prize' },
-  long: { approach: 'gauge', engage: 'long', decide: 'pound', after: 'prize' },
+  long: { approach: 'gauge', engage: 'long', decide: 'distance', after: 'prize' },
   rake: { approach: 'gauge', engage: 'rake', decide: 'pound', after: 'prize' },
   board: { approach: 'gauge', engage: 'close', decide: 'board', after: 'prize' },
 };
@@ -64,6 +64,21 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       return `${pct(r.won)} ${pct(r.lost)} ${pct(r.killed)}  cas ${pct(r.casualties)}`;
     });
     console.log(`${cls.padEnd(11)} ${enemy.padEnd(10)} | ${row.join(' | ')}`);
+  }
+  console.log('\nPlans across situations (won - lost, in points). Each plan should be best somewhere:');
+  const situations = [
+    ['fair 38 v French (even fight)', { cls: 'frigate38', enemy: 'french', gunnery: 55, seamanship: 55 }],
+    ['32 v French (outmanned 220 to 300)', { cls: 'frigate32', enemy: 'french', gunnery: 55, seamanship: 55 }],
+    ['38 v American 38', { cls: 'frigate38', enemy: 'american38', gunnery: 55, seamanship: 55 }],
+    ['drilled 38 v Spanish (sailing edge)', { cls: 'frigate38', enemy: 'spanish', gunnery: 70, seamanship: 75 }],
+    ['sloop v privateer', { cls: 'sloop', enemy: 'privateer', gunnery: 50, seamanship: 55 }],
+    ['drilled 32 v French (outmanned, better gunners)', { cls: 'frigate32', enemy: 'french', gunnery: 85, seamanship: 70 }],
+  ];
+  for (const [name, spec] of situations) {
+    const rows = Object.entries(PLANS).map(([p, plan]) => { const r = rate(runs, { ...spec, plan }); return [p, Math.round(100 * (r.won - r.lost)), Math.round(100 * r.lost)]; });
+    const best = rows.reduce((a, b) => (b[1] > a[1] ? b : a))[0];
+    const safest = rows.reduce((a, b) => (b[2] < a[2] ? b : a))[0];
+    console.log(`  ${name.padEnd(48)} ${rows.map(([p, v]) => `${p} ${String(v).padStart(4)}`).join('  ')}   best: ${best}, fewest ships lost: ${safest}`);
   }
   console.log('\nPlans, fair crew, 38 v French frigate:');
   for (const [name, plan] of Object.entries(PLANS)) {
